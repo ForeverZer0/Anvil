@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Anvil.Common", "Anvil.Common\Anvil.Common.csproj", "{5DD652DF-AB0B-4132-8618-CDFB2DB25ED6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5DD652DF-AB0B-4132-8618-CDFB2DB25ED6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DD652DF-AB0B-4132-8618-CDFB2DB25ED6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DD652DF-AB0B-4132-8618-CDFB2DB25ED6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DD652DF-AB0B-4132-8618-CDFB2DB25ED6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
