@@ -10,7 +10,7 @@ public class PitchShifter : AudioEffect
     /// Creates a new instance of the <see cref="PitchShifter"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public PitchShifter() : base(AL.GenEffect(EffectType.PitchShifter))
+    protected PitchShifter() : base(AL.GenEffect(EffectType.PitchShifter))
     {
     }
 	

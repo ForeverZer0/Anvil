@@ -16,11 +16,30 @@ public class AudioBuffer : AudioHandle<Buffer>
     /// </summary>
     /// <param name="count">The number of buffers to create. Must be a positive number.</param>
     /// <returns>An array containing the newly created <see cref="AudioBuffer"/> objects.</returns>
-    public static AudioBuffer[] Generate(int count)
+    /// <seealso cref="Destroy"/>
+    public static AudioBuffer[] Create(int count)
     {
         var buffers = new Buffer[count];
         AL.GenBuffers(buffers);
         return buffers.Select(buffer => new AudioBuffer(buffer)).ToArray();
+    }
+    
+    /// <summary>
+    /// Destroys/disposes multiple <see cref="AudioBuffer"/> instances simultaneously.
+    /// <para/>
+    /// When multiple buffers need destroyed, this method is slightly more efficient than doing so individually, as
+    /// it can be performed with a single API invocation. It is primarily offered as a convenience method and
+    /// mate to the <see cref="Create"/> method. 
+    /// </summary>
+    /// <param name="buffers">
+    /// A collection of <see cref="AudioBuffer"/> objects to destroy, typically the same collection collection that
+    /// was returned from <see cref="Create"/>.
+    /// </param>
+    /// <seealso cref="Create"/>
+    public static void Destroy(IEnumerable<AudioBuffer> buffers)
+    {
+        var handles = buffers.Select(buffer => buffer.Handle).ToArray();
+        AL.DeleteBuffers(handles);
     }
     
     /// <summary>
@@ -67,20 +86,7 @@ public class AudioBuffer : AudioHandle<Buffer>
     {
         AL.BufferData(Handle, format, data, frequency);
     }
-    
-    /// <summary>
-    /// Fills the buffer with PCM <paramref name="data"/> in the specified <paramref name="format"/> and
-    /// <paramref name="frequency"/>.
-    /// </summary>
-    /// <param name="data">A buffer containing the samples.</param>
-    /// <param name="format">The format of the <paramref name="data"/>.</param>
-    /// <param name="frequency">The frequency/samplerate of the <paramref name="data"/>.</param>
-    /// <typeparam name="T">An unmanaged primitive type.</typeparam>
-    public void Data<T>(T[] data, AudioFormat format, int frequency) where T : unmanaged
-    {
-        AL.BufferData(Handle, format, data, 0, data.Length, frequency);
-    }
-    
+
     /// <summary>
     /// Fills the buffer with PCM <paramref name="data"/> in the specified <paramref name="format"/> and
     /// <paramref name="frequency"/>.

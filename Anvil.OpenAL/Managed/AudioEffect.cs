@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 
@@ -14,13 +16,28 @@ public abstract class AudioEffect : AudioHandle<Effect>
     /// Cache to store dynamically created and compiled activator delegates.
     /// </summary>
     private static readonly Dictionary<Type, Func<AudioEffect>> activatorCache;
-    
+
+    /// <summary>
+    /// Cache for events.
+    /// <para/>
+    /// As an <see cref="AudioEffect"/> is merely a wrapper for an <see cref="Effect"/>, it is possible for another
+    /// method to return an <see cref="AudioEffect"/> for the same ID. As fas as the consumer is concerned, this is the
+    /// same exact object, but and for purposes, they are, but any events would not be shared.
+    /// <para/>
+    /// To counter this, event delegates are stored in a static dictionary that uses the handle, which is removed during
+    /// disposal. There are more robust patterns that could be used to solve this problem, but this is an adequate
+    /// compromise for such a small scale when we only need to make it work with a single event and not change the
+    /// existing design of the API.
+    /// </summary>
+    private static readonly Dictionary<Effect, EffectParamHandler> eventCache;
+
     /// <summary>
     /// Static constructor.
     /// </summary>
     static AudioEffect()
     {
         activatorCache = new Dictionary<Type, Func<AudioEffect>>();
+        eventCache = new Dictionary<Effect, EffectParamHandler>();
     }
 
     /// <summary>
@@ -28,12 +45,13 @@ public abstract class AudioEffect : AudioHandle<Effect>
     /// </summary>
     /// <typeparam name="TEffect">A type derived from <see cref="AudioEffect"/> with a parameterless constructor.</typeparam>
     /// <returns>A new instance of an <see cref="AudioEffect"/> with a compatible derived type.</returns>
-    public static TEffect Factory<TEffect>() where TEffect : AudioEffect, new()
+    public static TEffect Factory<TEffect>() where TEffect : AudioEffect
     {
+        const BindingFlags flags = Anvil.Factory.DefaultFlags | BindingFlags.NonPublic;
         var type = typeof(TEffect);
         if (!activatorCache.TryGetValue(type, out var activator))
         {
-            activator = Anvil.Factory.CreateActivator<TEffect>();
+            activator = Anvil.Factory.CreateActivator<TEffect>(flags);
             activatorCache.Add(type, activator);
         }
         return (TEffect) activator.Invoke();
@@ -99,18 +117,31 @@ public abstract class AudioEffect : AudioHandle<Effect>
     /// <summary>
     /// Occurs when a parameter that effects the output sound is changed.
     /// </summary>
-    public event EffectParamHandler? ParameterChanged;
+    public event EffectParamHandler? ParameterChanged
+    {
+        add => eventCache[Handle] += value;
+        remove
+        {
+            if (eventCache.ContainsKey(Handle))
+#pragma warning disable CS8601
+                eventCache[Handle] -= value;
+#pragma warning restore CS8601
+        }
+    }
     
     /// <inheritdoc />
     protected AudioEffect(Effect handle) : base(handle)
     {
+        
     }
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
-            AL.DeleteEffect(Handle);
+        if (!disposing)
+            return;
+        AL.DeleteEffect(Handle);
+        eventCache.Remove(Handle);
     }
 
     /// <inheritdoc />
@@ -202,7 +233,8 @@ public abstract class AudioEffect : AudioHandle<Effect>
     /// <typeparam name="TEnum">An enum value whose type has a 32-bit backing store.</typeparam>
     protected void OnParameterChanged<TEnum>(TEnum param) where TEnum : struct, Enum
     {
-        ParameterChanged?.Invoke(this, Unsafe.As<TEnum, int>(ref param));
+        if (eventCache.TryGetValue(Handle, out var handler))
+            handler.Invoke(this, Unsafe.As<TEnum, int>(ref param));
     }
 	
     /// <summary>
@@ -214,6 +246,7 @@ public abstract class AudioEffect : AudioHandle<Effect>
     /// </param>
     protected void OnParameterChanged(int param = -1)
     {
-        ParameterChanged?.Invoke(this, param);
+        if (eventCache.TryGetValue(Handle, out var handler))
+            handler.Invoke(this, param);
     }
 }

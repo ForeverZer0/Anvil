@@ -8,11 +8,13 @@
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+      <DefineConstants>TRACE;AL_ERROR_EVENTS</DefineConstants>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
       <DocumentationFile>bin\Release\net6.0\Anvil.OpenAL.xml</DocumentationFile>
+      <DefineConstants>TRACE;AL_ERROR_EVENTS</DefineConstants>
     </PropertyGroup>
 
     <ItemGroup>

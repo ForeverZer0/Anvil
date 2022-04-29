@@ -8,6 +8,9 @@ using JetBrains.Annotations;
 
 namespace Anvil.OpenAL;
 
+/// <summary>
+/// Parameters to query/change the properties of <see cref="Source"/> objects.
+/// </summary>
 [PublicAPI]
 public enum BufferProperty
 {

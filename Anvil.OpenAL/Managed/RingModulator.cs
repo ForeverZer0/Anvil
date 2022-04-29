@@ -10,7 +10,7 @@ public class RingModulator : AudioEffect
     /// Creates a new instance of the <see cref="RingModulator"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public RingModulator() : base(AL.GenEffect(EffectType.RingModulator))
+    protected RingModulator() : base(AL.GenEffect(EffectType.RingModulator))
     {
     }
 	

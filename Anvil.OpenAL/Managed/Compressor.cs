@@ -10,7 +10,7 @@ public class Compressor : AudioEffect
     /// Creates a new instance of the <see cref="Compressor"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public Compressor() : base(AL.GenEffect(EffectType.Compressor))
+    protected Compressor() : base(AL.GenEffect(EffectType.Compressor))
     {
     }
     

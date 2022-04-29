@@ -10,7 +10,7 @@ public class Flanger : AudioEffect
     /// Creates a new instance of the <see cref="Flanger"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public Flanger() : base(AL.GenEffect(EffectType.Flanger))
+    protected Flanger() : base(AL.GenEffect(EffectType.Flanger))
     {
     }
 	

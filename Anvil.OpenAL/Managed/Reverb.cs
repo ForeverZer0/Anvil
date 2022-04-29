@@ -20,7 +20,7 @@ public class Reverb : AudioEffect, IReverb
 	/// Creates a new instance of the <see cref="Reverb"/> class.
 	/// </summary>
 	/// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-	public Reverb() : base(AL.GenEffect(EffectType.Reverb))
+	protected Reverb() : base(AL.GenEffect(EffectType.Reverb))
 	{
 	}
 	

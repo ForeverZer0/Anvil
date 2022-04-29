@@ -9,7 +9,7 @@ public static class Factory
 {
     // TODO: Value types
     
-    public const BindingFlags DefaultFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+    public const BindingFlags DefaultFlags = BindingFlags.Public | BindingFlags.Instance;
     
     private static TDelegate Generate<TDelegate, TResult>(BindingFlags flags, params Type[] parameters) where TDelegate : Delegate
     {
@@ -36,7 +36,7 @@ public static class Factory
     /// </param>
     /// <typeparam name="TResult">The type of object being returned.</typeparam>
     /// <returns>A delegate that can be used to create instances of the specified type.</returns>
-    public static Func<TResult> CreateActivator<TResult>(BindingFlags flags = DefaultFlags) where TResult : new()
+    public static Func<TResult> CreateActivator<TResult>(BindingFlags flags = DefaultFlags)
     {
         return Generate<Func<TResult>, TResult>(flags);
     }

@@ -10,7 +10,7 @@ public class FrequencyShifter : AudioEffect
     /// Creates a new instance of the <see cref="FrequencyShifter"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public FrequencyShifter() : base(AL.GenEffect(EffectType.FrequencyShifter))
+    protected FrequencyShifter() : base(AL.GenEffect(EffectType.FrequencyShifter))
     {
     }
 	

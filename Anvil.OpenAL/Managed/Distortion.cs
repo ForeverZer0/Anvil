@@ -10,7 +10,7 @@ public class Distortion : AudioEffect
     /// Creates a new instance of the <see cref="Distortion"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public Distortion() : base(AL.GenEffect(EffectType.Distortion))
+    protected Distortion() : base(AL.GenEffect(EffectType.Distortion))
     {
     }
 	

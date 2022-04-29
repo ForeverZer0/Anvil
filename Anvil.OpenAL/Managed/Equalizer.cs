@@ -10,7 +10,7 @@ public class Equalizer : AudioEffect
     /// Creates a new instance of the <see cref="Equalizer"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public Equalizer() : base(AL.GenEffect(EffectType.Equalizer))
+    protected Equalizer() : base(AL.GenEffect(EffectType.Equalizer))
     {
     }
 	

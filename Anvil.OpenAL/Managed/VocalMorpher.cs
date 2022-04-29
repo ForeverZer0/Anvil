@@ -10,7 +10,7 @@ public class VocalMorpher : AudioEffect
     /// Creates a new instance of the <see cref="VocalMorpher"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public VocalMorpher() : base(AL.GenEffect(EffectType.VocalMorpher))
+    protected VocalMorpher() : base(AL.GenEffect(EffectType.VocalMorpher))
     {
     }
 	

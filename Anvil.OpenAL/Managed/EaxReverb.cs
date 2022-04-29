@@ -11,7 +11,7 @@ public class EaxReverb : AudioEffect, IReverb
     /// Creates a new instance of the <see cref="EaxReverb"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public EaxReverb() : base(AL.GenEffect(EffectType.EaxReverb))
+    protected EaxReverb() : base(AL.GenEffect(EffectType.EaxReverb))
     {
     }
     

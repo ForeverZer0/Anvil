@@ -44,10 +44,8 @@ public class AudioEffectSlot : AudioHandle<EffectSlot>
     /// Creates a new <see cref="EffectSlot"/> and wraps it as a <see cref="AudioEffectSlot"/> instance.
     /// </summary>
     /// <param name="effect">An <see cref="AudioEffect"/> to attach to this slot.</param>
-    public AudioEffectSlot(AudioEffect? effect) : this(AL.GenAuxiliaryEffectSlot())
+    public AudioEffectSlot(AudioEffect effect) : this(AL.GenAuxiliaryEffectSlot(effect.Handle))
     {
-        if (effect is not null)
-            AL.AuxiliaryEffectSlotI(Handle, EffectSlotProperty.Effect, effect.Handle);
     }
     
     /// <inheritdoc />

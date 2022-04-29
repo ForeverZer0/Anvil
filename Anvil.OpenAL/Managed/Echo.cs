@@ -10,7 +10,7 @@ public class Echo : AudioEffect
     /// Creates a new instance of the <see cref="Echo"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public Echo() : base(AL.GenEffect(EffectType.Echo))
+    protected Echo() : base(AL.GenEffect(EffectType.Echo))
     {
     }
 	

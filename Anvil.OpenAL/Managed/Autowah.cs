@@ -10,7 +10,7 @@ public class Autowah : AudioEffect
     /// Creates a new instance of the <see cref="Autowah"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public Autowah() : base(AL.GenEffect(EffectType.Autowah))
+    protected Autowah() : base(AL.GenEffect(EffectType.Autowah))
     {
     }
 	

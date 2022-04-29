@@ -10,7 +10,7 @@ public class Chorus : AudioEffect
     /// Creates a new instance of the <see cref="Chorus"/> class.
     /// </summary>
     /// <remarks>Automatically creates and wraps the underlying <see cref="Effect"/> object.</remarks>
-    public Chorus() : base(AL.GenEffect(EffectType.Chorus))
+    protected Chorus() : base(AL.GenEffect(EffectType.Chorus))
     {
     }
     

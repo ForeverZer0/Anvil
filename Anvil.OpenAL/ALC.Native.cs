@@ -62,27 +62,25 @@ public static unsafe partial class ALC
 		alcGetEnumValue = (delegate *unmanaged[Cdecl]<Device,byte*,int>) Library.Import("alcGetEnumValue");
 		alcGetString = (delegate *unmanaged[Cdecl]<Device,int,byte*>) Library.Import("alcGetString");
 		alcGetIntegerv = (delegate *unmanaged[Cdecl]<Device,int,int,int*,void>) Library.Import("alcGetIntegerv");
-		alcCaptureOpenDevice = (delegate *unmanaged[Cdecl]<byte*,int,int,int,Device>) Library.Import("alcCaptureOpenDevice");
-		alcCaptureCloseDevice = (delegate *unmanaged[Cdecl]<Device,bool>) Library.Import("alcCaptureCloseDevice");
-		alcCaptureStart = (delegate *unmanaged[Cdecl]<Device,void>) Library.Import("alcCaptureStart");
-		alcCaptureStop = (delegate *unmanaged[Cdecl]<Device,void>) Library.Import("alcCaptureStop");
-		alcCaptureSamples = (delegate *unmanaged[Cdecl]<Device,void*,int,void>) Library.Import("alcCaptureSamples");
-		alcSetThreadContext = (delegate *unmanaged[Cdecl]<Context,bool>) Library.Import("alcSetThreadContext");
-		alcGetThreadContext = (delegate *unmanaged[Cdecl]<Context>) Library.Import("alcGetThreadContext");
-		alcLoopbackOpenDeviceSOFT = (delegate *unmanaged[Cdecl]<byte*,Device>) Library.Import("alcLoopbackOpenDeviceSOFT");
-		alcIsRenderFormatSupportedSOFT = (delegate *unmanaged[Cdecl]<Device,int,int,int,bool>) Library.Import("alcIsRenderFormatSupportedSOFT");
-		alcRenderSamplesSOFT = (delegate *unmanaged[Cdecl]<Device,void*,int,void>) Library.Import("alcRenderSamplesSOFT");
-		alcDevicePauseSOFT = (delegate *unmanaged[Cdecl]<Device,void>) Library.Import("alcDevicePauseSOFT");
-		alcDeviceResumeSOFT = (delegate *unmanaged[Cdecl]<Device,void>) Library.Import("alcDeviceResumeSOFT");
-		alcGetStringiSOFT = (delegate *unmanaged[Cdecl]<Device,int,int,byte*>) Library.Import("alcGetStringiSOFT");
-		alcResetDeviceSOFT = (delegate *unmanaged[Cdecl]<Device,int*,bool>) Library.Import("alcResetDeviceSOFT");
-		alcGetInteger64vSOFT = (delegate *unmanaged[Cdecl]<Device,int,int,long*,void>) Library.Import("alcGetInteger64vSOFT");
+		alcCaptureOpenDevice = (delegate *unmanaged[Cdecl]<byte*,int,int,int,Device>) Library.Import("alcCaptureOpenDevice", false);
+		alcCaptureCloseDevice = (delegate *unmanaged[Cdecl]<Device,bool>) Library.Import("alcCaptureCloseDevice", false);
+		alcCaptureStart = (delegate *unmanaged[Cdecl]<Device,void>) Library.Import("alcCaptureStart", false);
+		alcCaptureStop = (delegate *unmanaged[Cdecl]<Device,void>) Library.Import("alcCaptureStop", false);
+		alcCaptureSamples = (delegate *unmanaged[Cdecl]<Device,void*,int,void>) Library.Import("alcCaptureSamples", false);
+		alcSetThreadContext = (delegate *unmanaged[Cdecl]<Context,bool>) Library.Import("alcSetThreadContext", false);
+		alcGetThreadContext = (delegate *unmanaged[Cdecl]<Context>) Library.Import("alcGetThreadContext", false);
+		alcLoopbackOpenDeviceSOFT = (delegate *unmanaged[Cdecl]<byte*,Device>) Library.Import("alcLoopbackOpenDeviceSOFT", false);
+		alcIsRenderFormatSupportedSOFT = (delegate *unmanaged[Cdecl]<Device,int,int,int,bool>) Library.Import("alcIsRenderFormatSupportedSOFT", false);
+		alcRenderSamplesSOFT = (delegate *unmanaged[Cdecl]<Device,void*,int,void>) Library.Import("alcRenderSamplesSOFT", false);
+		alcDevicePauseSOFT = (delegate *unmanaged[Cdecl]<Device,void>) Library.Import("alcDevicePauseSOFT", false);
+		alcDeviceResumeSOFT = (delegate *unmanaged[Cdecl]<Device,void>) Library.Import("alcDeviceResumeSOFT", false);
+		alcGetStringiSOFT = (delegate *unmanaged[Cdecl]<Device,int,int,byte*>) Library.Import("alcGetStringiSOFT", false);
+		alcResetDeviceSOFT = (delegate *unmanaged[Cdecl]<Device,int*,bool>) Library.Import("alcResetDeviceSOFT", false);
+		alcGetInteger64vSOFT = (delegate *unmanaged[Cdecl]<Device,int,int,long*,void>) Library.Import("alcGetInteger64vSOFT", false);
 	}
 
 	public const int FALSE = 0;
 	public const int TRUE = 1;
-
-
 
 	public const int CHAN_MAIN_LOKI = 0x500001;
 	public const int CHAN_PCM_LOKI = 0x500002;
