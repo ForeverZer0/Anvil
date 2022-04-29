@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Anvil.Common", "Anvil.Commo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Anvil.OpenGL", "Anvil.OpenGL\Anvil.OpenGL.csproj", "{459A3D33-0B5F-49F8-BE16-89E8A3C07420}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Anvil.OpenAL", "Anvil.OpenAL\Anvil.OpenAL.csproj", "{F059E041-469A-4020-9106-58EF60954B54}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{459A3D33-0B5F-49F8-BE16-89E8A3C07420}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{459A3D33-0B5F-49F8-BE16-89E8A3C07420}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{459A3D33-0B5F-49F8-BE16-89E8A3C07420}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F059E041-469A-4020-9106-58EF60954B54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F059E041-469A-4020-9106-58EF60954B54}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F059E041-469A-4020-9106-58EF60954B54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F059E041-469A-4020-9106-58EF60954B54}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
