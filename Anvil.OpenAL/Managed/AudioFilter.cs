@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 
@@ -61,9 +62,10 @@ public abstract class AudioFilter : AudioHandle<Filter>
     /// <returns>A new instance of an <see cref="AudioFilter"/> with a compatible derived type.</returns>
     public static TFilter Factory<TFilter>() where TFilter : AudioFilter, new()
     {
-        if (!activatorCache.TryGetValue(typeof(TFilter), out var activator))
+        var type = typeof(TFilter);
+        if (!activatorCache.TryGetValue(type, out var activator))
         {
-            activator = Anvil.Factory.CreateActivator<TFilter>();
+            activator = Emit.Ctor<Func<AudioFilter>>(type, Emit.PublicAndPrivate);
             activatorCache.Add(typeof(TFilter), activator);
         }
         return (TFilter) activator.Invoke();

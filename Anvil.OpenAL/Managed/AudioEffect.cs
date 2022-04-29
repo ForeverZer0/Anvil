@@ -47,11 +47,12 @@ public abstract class AudioEffect : AudioHandle<Effect>
     /// <returns>A new instance of an <see cref="AudioEffect"/> with a compatible derived type.</returns>
     public static TEffect Factory<TEffect>() where TEffect : AudioEffect
     {
-        const BindingFlags flags = Anvil.Factory.DefaultFlags | BindingFlags.NonPublic;
+        const BindingFlags flags = Anvil.Emit.Public | BindingFlags.NonPublic;
         var type = typeof(TEffect);
         if (!activatorCache.TryGetValue(type, out var activator))
         {
-            activator = Anvil.Factory.CreateActivator<TEffect>(flags);
+            activator = Anvil.Emit.Ctor<Func<AudioEffect>>(type, flags);
+            // activator = Anvil.Factory.CreateActivator<TEffect>(flags);
             activatorCache.Add(type, activator);
         }
         return (TEffect) activator.Invoke();

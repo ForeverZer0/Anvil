@@ -54,39 +54,9 @@ public abstract class Component : IEquatable<Component>
         if (activators.TryGetValue(type, out var activator))
             return activator.Invoke();
 
-        activator = CreateActivator(type);
+        activator = Emit.Ctor<Func<Component>>(type);
         activators[type] = activator;
         return activator.Invoke();
-    }
-    
-    /// <summary>
-    /// Creates and compiles a dynamic method to create a default instance of the given component <paramref name="type"/>.
-    /// </summary>
-    /// <param name="type">A type derived from <see cref="Component"/> that has a parameterless constructor.</param>
-    /// <returns>A delegate to call the constructor directly without reflection.</returns>
-    /// <remarks>
-    /// This method creates and compiles a direct call to the constructor, and is considerably faster than using
-    /// reflection or even calling <c>new T()</c> with a <c>new()</c> constraint.
-    /// </remarks>
-    /// <exception cref="ConstraintException">
-    /// When type is not derived from <see cref="Component"/> or does not have a parameterless constructor.
-    /// </exception>
-    /// <seealso href="https://vagifabilov.wordpress.com/2010/04/02/dont-use-activator-createinstance-or-constructorinfo-invoke-use-compiled-lambda-expressions/"/>
-    /// <seealso href="https://stackoverflow.com/questions/6582259/fast-creation-of-objects-instead-of-activator-createinstancetype/6882881"/>
-    private static Func<Component> CreateActivator(Type type)
-    {
-        if (!type.IsAssignableTo(typeof(Component)))
-            throw new ConstraintException("Type must be assignable to Component class.");
-        
-        var ctor = type.GetConstructor(Type.EmptyTypes);
-        if (ctor is null)
-            throw new ConstraintException("Component type must have a parameterless constructor.");
-        
-        var dynamicMethod = new DynamicMethod($"Create{type.Name}Instance", type, null, type);
-        var il = dynamicMethod.GetILGenerator();
-        il.Emit(OpCodes.Newobj, ctor);
-        il.Emit(OpCodes.Ret);
-        return dynamicMethod.CreateDelegate<Func<Component>>();
     }
 
     /// <inheritdoc />
