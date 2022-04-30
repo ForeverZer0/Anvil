@@ -6,12 +6,12 @@ namespace Anvil.Network.API;
 /// Describes the target receiver for a <see cref="Packet"/>.
 /// </summary>
 [PublicAPI, Flags]
-public enum PacketDirection : byte
+public enum NetworkDirection : byte
 {
     /// <summary>
     /// Not specified and/or invalid.
     /// </summary>
-    Unspecified,
+    None,
     
     /// <summary>
     /// Sent to a server.
