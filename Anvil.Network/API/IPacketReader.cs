@@ -39,6 +39,18 @@ public interface IPacketReader
     long ReadInt64();
 
     /// <summary>
+    /// Reads a variable length integer from the underlying data store.
+    /// </summary>
+    /// <returns>The value as a <see cref="int"/>.</returns>
+    int ReadVarInt();
+    
+    /// <summary>
+    /// Reads a variable length integer from the underlying data store.
+    /// </summary>
+    /// <returns>The value as a <see cref="long"/>.</returns>
+    long ReadVarLong();
+
+    /// <summary>
     /// Reads a <see cref="float"/> value from the underlying data store.
     /// </summary>
     /// <returns>The <see cref="float"/> value.</returns>

@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
-using Anvil.Network.API;
 using JetBrains.Annotations;
 
-namespace Anvil.Network;
+namespace Anvil.Network.API;
 
 /// <summary>
 /// Provides an interface for registering and organizing numerous packet types, as well as efficiently creating new
@@ -43,8 +42,9 @@ public class PacketFactory<TPacketId, TReader, TWriter>
 
         var type = typeof(TPacket);
         var activator = Emit.Ctor<Func<IPacket<TReader, TWriter>>>(type);
-        packetActivators[id] = activator;
-        packetTypes[type] = id;
+
+        if (!packetActivators.TryAdd(id, activator) || !packetTypes.TryAdd(type, id))
+            throw new InvalidOperationException($"Failed to register packet with ID: {id}");
     }
 
     /// <summary>
