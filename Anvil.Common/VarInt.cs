@@ -16,7 +16,7 @@ namespace Anvil;
         /// <param name="value">The value to encode and write.</param>
         /// <param name="zigzag">Flag indicating if the value will be ZigZag encoded.</param>
         /// <returns>The number of bytes written to the <paramref name="stream"/>.</returns>
-        public static int Write([NotNull] Stream stream, int value, bool zigzag = false)
+        public static int Write(Stream stream, int value, bool zigzag = false)
         {
             var buffer = Encode(value, zigzag);
             stream.Write(buffer, 0, buffer.Length);
@@ -29,7 +29,7 @@ namespace Anvil;
         /// <param name="stream">A <see cref="Stream"/> instance to read from.</param>
         /// <param name="zigzag">Flag indicating if the value is ZigZag encoded.</param>
         /// <returns>The parsed value read from the <paramref name="stream"/>.</returns>
-        public static int Read([NotNull] Stream stream, bool zigzag = false)
+        public static int Read(Stream stream, bool zigzag = false)
         {
             var value = VarIntUtil.Decode(stream, 32, out var dummy);
             return zigzag ? (int) VarIntUtil.DecodeZigZag(value) : unchecked((int)value);
@@ -42,7 +42,7 @@ namespace Anvil;
         /// <param name="size">A variable to store the number of bytes read from the <paramref name="stream"/>.</param>
         /// <param name="zigzag">Flag indicating if the value is ZigZag encoded.</param>
         /// <returns>The parsed value read from the <paramref name="stream"/>.</returns>
-        public static int Read([NotNull] Stream stream, out int size, bool zigzag = false)
+        public static int Read(Stream stream, out int size, bool zigzag = false)
         {
             var value = VarIntUtil.Decode(stream, 32, out size);
             return zigzag ? (int) VarIntUtil.DecodeZigZag(value) : unchecked((int)value);
@@ -70,7 +70,7 @@ namespace Anvil;
         /// <param name="size">A variable to store the actual number of bytes read from the <paramref name="buffer"/>.</param>
         /// <param name="zigzag">Flag indicating if the value is ZigZag encoded.</param>
         /// <returns>The decoded value.</returns>
-        public static long Decode([NotNull] byte[] buffer, int offset, int count, out int size, bool zigzag = false)
+        public static int Decode(byte[] buffer, int offset, int count, out int size, bool zigzag = false)
         {
             return Decode(new ReadOnlySpan<byte>(buffer, offset, count), out size, zigzag);
         }
@@ -83,7 +83,7 @@ namespace Anvil;
         /// <param name="count">The maximum number of bytes that should be read from the <paramref name="buffer"/>.</param>
         /// <param name="zigzag">Flag indicating if the value is ZigZag encoded.</param>
         /// <returns>The decoded value.</returns>
-        public static long Decode([NotNull] byte[] buffer, int offset, int count, bool zigzag = false)
+        public static int Decode(byte[] buffer, int offset, int count, bool zigzag = false)
         {
             return Decode(new ReadOnlySpan<byte>(buffer, offset, count), out var dummy, zigzag);
         }

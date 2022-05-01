@@ -22,7 +22,7 @@ public interface IClientConnection
     /// <summary>
     /// Gets the state of the connection.
     /// </summary>
-    ConnectionState State { get; }
+    ClientState State { get; }
 
     /// <summary>
     /// Gets a flag indicating if the connection is currently open or closed.

@@ -3,7 +3,7 @@ using JetBrains.Annotations;
 namespace Anvil.Network.API;
 
 /// <summary>
-/// Describes the target receiver for a <see cref="Packet"/>.
+/// Describes the direction and/or receiver for network traffic.
 /// </summary>
 [PublicAPI, Flags]
 public enum NetworkDirection : byte
@@ -14,17 +14,17 @@ public enum NetworkDirection : byte
     None,
     
     /// <summary>
-    /// Sent to a server.
+    /// Sent to a server from a client.
     /// </summary>
     ServerBound = 0x01,
     
     /// <summary>
-    /// Sent to a client.
+    /// Sent to a client from the server.
     /// </summary>
     ClientBound = 0x02,
     
     /// <summary>
-    /// Can be sent to any receiver.
+    /// Can be sent to/from clients and server.
     /// </summary>
-    Any = 0xFF
+    Both = ServerBound | ClientBound
 }

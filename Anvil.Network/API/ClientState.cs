@@ -3,10 +3,10 @@ using JetBrains.Annotations;
 namespace Anvil.Network.API;
 
 /// <summary>
-/// Describes the state of a connection.
+/// Describes the state of a client connection.
 /// </summary>
 [PublicAPI]
-public enum ConnectionState : byte
+public enum ClientState
 {
     /// <summary>
     /// Initial "handshake" state.

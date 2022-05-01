@@ -16,7 +16,7 @@ public readonly struct Gid : IEquatable<Gid>, IComparable<Gid>, IComparable
 {
     [FieldOffset(0)]
     private readonly int value;
-    
+
     private const int FLIPPED_HORIZONTALLY_FLAG  = unchecked((int) 0x80000000);
     private const int FLIPPED_VERTICALLY_FLAG    = 0x40000000;
     private const int FLIPPED_DIAGONALLY_FLAG    = 0x20000000;

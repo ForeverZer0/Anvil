@@ -3,7 +3,8 @@ using JetBrains.Annotations;
 namespace Anvil.Network.API;
 
 /// <summary>
-/// Represent an object that is capable of writing binary data to a an underlying stream in a supported format.
+/// Represent an object containing methods for writing the data of an <see cref="IPacket"/> into binary format,
+/// typically for the purpose of transmission over a network.
 /// </summary>
 [PublicAPI]
 public interface IPacketWriter
@@ -37,7 +38,29 @@ public interface IPacketWriter
     /// </summary>
     /// <param name="value">The <see cref="long"/> value to write.</param>
     void WriteInt64(long value);
-
+    
+    /// <summary>
+    /// Writes a variable length integer (<see cref="VarInt"/>) to the underlying data store.
+    /// </summary>
+    /// <param name="value">The <see cref="int"/> value to write.</param>
+    /// <remarks>A <see cref="VarInt"/> only contains the number of bytes required to fully express the value.</remarks>
+    void WriteVarInt(int value);
+    
+    /// <summary>
+    /// Writes a <see cref="Enum"/> as a variable length integer (<see cref="VarInt"/>) to the underlying data store.
+    /// </summary>
+    /// <param name="value">The <see cref="Enum"/> value to write.</param>
+    /// <typeparam name="TEnum32">An <see cref="Enum"/> type that is backed by a 32-bit integer.</typeparam>
+    /// <remarks>A <see cref="VarInt"/> only contains the number of bytes required to fully express the value.</remarks>
+    void WriteVarInt<TEnum32>(TEnum32 value) where TEnum32 : unmanaged, Enum;
+    
+    /// <summary>
+    /// Writes a variable length integer (<see cref="VarLong"/>) to the underlying data store.
+    /// </summary>
+    /// <param name="value">The <see cref="long"/> value to write.</param>
+    /// <remarks>A <see cref="VarLong"/> only contains the number of bytes required to fully express the value.</remarks>
+    void WriteVarLong(long value);
+    
     /// <summary>
     /// Writes a <see cref="float"/> value to the underlying data store.
     /// </summary>

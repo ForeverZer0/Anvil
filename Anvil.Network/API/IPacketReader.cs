@@ -3,7 +3,8 @@ using JetBrains.Annotations;
 namespace Anvil.Network.API;
 
 /// <summary>
-/// Represent an object that is capable of writing binary data to a an underlying stream in a supported format.
+/// Represent an object containing methods for reading binary formatted data, typically transmitted over a network, back
+/// into managed types contained with an <see cref="IPacket"/> object.
 /// </summary>
 [PublicAPI]
 public interface IPacketReader
@@ -42,12 +43,22 @@ public interface IPacketReader
     /// Reads a variable length integer from the underlying data store.
     /// </summary>
     /// <returns>The value as a <see cref="int"/>.</returns>
+    /// <remarks>A <see cref="VarInt"/> only contains the number of bytes required to fully express the value.</remarks>
     int ReadVarInt();
+
+    /// <summary>
+    /// Reads a variable length integer from the underlying data store and returns it as an <see cref="Enum"/>.
+    /// </summary>
+    /// <typeparam name="TEnum32">An <see cref="Enum"/> type that is backed by a 32-bit integer.</typeparam>
+    /// <returns>The value as a <typeparamref name="TEnum32"/>..</returns>
+    /// <remarks>A <see cref="VarInt"/> only contains the number of bytes required to fully express the value.</remarks>
+    TEnum32 ReadVarInt<TEnum32>();
     
     /// <summary>
     /// Reads a variable length integer from the underlying data store.
     /// </summary>
     /// <returns>The value as a <see cref="long"/>.</returns>
+    /// <remarks>A <see cref="VarLong"/> only contains the number of bytes required to fully express the value.</remarks>
     long ReadVarLong();
 
     /// <summary>
@@ -74,45 +85,15 @@ public interface IPacketReader
     /// </summary>
     /// <param name="count">The number of bytes to read.</param>
     /// <returns>A <see cref="ReadOnlySpan{T}"/> over a region of the internal buffer.</returns>
-    ReadOnlySpan<byte> ReadBuffer(int count);
-    
-    /// <summary>
-    /// Reads an arbitrary block of bytes from the underlying data store into a user-supplied <paramref name="buffer"/>.
-    /// </summary>
-    /// <param name="buffer">A <see cref="Span{T}"/> to receive the data.</param>
-    void ReadBuffer(Span<byte> buffer);
+    Span<byte> ReadBuffer(int count);
 
-    /// <summary>
-    /// Reads an arbitrary block of bytes from the underlying data store into a user-supplied <paramref name="buffer"/>.
-    /// </summary>
-    /// <param name="buffer">An array to receive the data.</param>
-    /// <param name="start">The index into the <paramref name="buffer"/> to begin writing.</param>
-    /// <param name="length">The number of bytes to read into the <paramref name="buffer"/>.</param>
-    void ReadBuffer(byte[] buffer, int start, int length);
-    
     /// <summary>
     /// Reads an arbitrary block of data from the underlying data store as the specified primitive type.
     /// </summary>
     /// <param name="count">The number of items to read.</param>
     /// <typeparam name="T">A primitive/blittable value type.</typeparam>
     /// <returns>A <see cref="ReadOnlySpan{T}"/> over a region of the internal buffer.</returns>
-    ReadOnlySpan<T> ReadBuffer<T>(int count) where T : unmanaged;
-    
-    /// <summary>
-    /// Reads an arbitrary block of bytes from the underlying data store into a user-supplied <paramref name="buffer"/>.
-    /// </summary>
-    /// <param name="buffer">A <see cref="Span{T}"/> to receive the data.</param>
-    /// <typeparam name="T">A primitive/blittable value type.</typeparam>
-    void ReadBuffer<T>(Span<T> buffer) where T : unmanaged;
-    
-    /// <summary>
-    /// Reads an arbitrary block of data from the underlying data store into a user-supplied <paramref name="buffer"/>.
-    /// </summary>
-    /// <param name="buffer">An array to receive the data.</param>
-    /// <param name="start">The index into the <paramref name="buffer"/> to begin writing.</param>
-    /// <param name="length">The number of items to read into the <paramref name="buffer"/>.</param>
-    /// <typeparam name="T">A primitive/blittable value type.</typeparam>
-    void ReadBuffer<T>(T[] buffer, int start, int length) where T : unmanaged;
+    Span<T> ReadBuffer<T>(int count) where T : unmanaged;
 
     /// <summary>
     /// Reads a <see cref="float"/> value from the underlying data store.
