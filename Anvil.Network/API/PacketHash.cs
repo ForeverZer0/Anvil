@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using JetBrains.Annotations;
 
 namespace Anvil.Network.API;
 
@@ -13,9 +14,19 @@ namespace Anvil.Network.API;
 /// For this reason, packet IDs are limited to a maximum value of <c>0x7FFFFFF</c>, so though they are represented as
 /// 32-bit values in the API, they are actually only valid as 27-bit values.
 /// </remarks>
-[StructLayout(LayoutKind.Explicit, Size = sizeof(int), Pack = 0)]
+[StructLayout(LayoutKind.Explicit, Size = sizeof(int), Pack = 0), PublicAPI]
 public readonly struct PacketHash : IEquatable<PacketHash>
 {
+    /// <summary>
+    /// Gets the minimum possible value for a packet identifier.
+    /// </summary>
+    public const int MinPacketId = -0x8000000;
+    
+    /// <summary>
+    /// Gets the maximum possible value for a packet identifier.
+    /// </summary>
+    public const int MaxPacketId =  0x7FFFFFF;
+
     private const int PACKET_MASK                     = 0b00000111111111111111111111111111;
     private const int CLIENT_STATE_MASK               = 0b00111000000000000000000000000000;
     private const int DIRECTION_MASK  = unchecked((int) 0b11000000000000000000000000000000);
@@ -57,6 +68,16 @@ public readonly struct PacketHash : IEquatable<PacketHash>
     /// </summary>
     [FieldOffset(0)]
     private readonly int hashCode;
+    
+    private static void AssertPacketRange(int id)
+    {
+        if (id is >= MinPacketId and <= MaxPacketId)
+            return;
+
+        var min = Math.Abs(MinPacketId).ToString("X");
+        var message = $"Packet ID must be in the range of -0x{min} and 0x{MaxPacketId:X}.";
+        throw new ArgumentOutOfRangeException(nameof(id), message);
+    }
 
     /// <summary>
     /// Initializes a new <see cref="PacketHash"/>.
@@ -66,6 +87,7 @@ public readonly struct PacketHash : IEquatable<PacketHash>
     /// <param name="id">A unique ID for the packet.</param>
     public PacketHash(NetworkDirection direction, ClientState state, int id)
     {
+        AssertPacketRange(id);
         unchecked
         {
             hashCode = (Unsafe.As<NetworkDirection, int>(ref direction) << DIRECTION_SHIFT) |
@@ -82,11 +104,14 @@ public readonly struct PacketHash : IEquatable<PacketHash>
     /// <param name="id">A unique ID for the packet.</param>
     public PacketHash(NetworkDirection direction, ClientState state, Enum id)
     {
+        var i = Convert.ToInt32(id);
+        AssertPacketRange(i);
+        
         unchecked
         {
             hashCode = (Unsafe.As<NetworkDirection, int>(ref direction) << DIRECTION_SHIFT) |
                        (Unsafe.As<ClientState, int>(ref state) << CLIENT_STATE_SHIFT) |
-                       (Convert.ToInt32(id) & PACKET_MASK);
+                       (i & PACKET_MASK);
         }
     }
 

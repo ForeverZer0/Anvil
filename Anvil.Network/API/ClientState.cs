@@ -19,7 +19,7 @@ public enum ClientState
     Status,
     
     /// <summary>
-    /// Authentication and/or login state.
+    /// Authentication/login state.
     /// </summary>
     Authentication,
     

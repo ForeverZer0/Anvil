@@ -38,6 +38,23 @@ internal static class VarIntUtil
 
         return buffer[..pos].ToArray();
     }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int Encode(Span<byte> buffer, uint value)
+    {
+        var pos = 0;
+        do
+        {
+            var byteVal = value & 0x7f;
+            value >>= 7;
+            if (value != 0)
+                byteVal |= 0x80;
+            buffer[pos++] = (byte) byteVal;
+
+        } while (value != 0);
+
+        return pos;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static byte[] Encode(ulong value)
@@ -56,6 +73,23 @@ internal static class VarIntUtil
 
         return buffer[..pos].ToArray();
     }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int Encode(Span<byte> buffer, ulong value)
+    {
+        var pos = 0;
+        do
+        {
+            var byteVal = value & 0x7f;
+            value >>= 7;
+            if (value != 0)
+                byteVal |= 0x80;
+            buffer[pos++] = (byte) byteVal;
+
+        } while (value != 0);
+
+        return pos;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ulong Decode(ReadOnlySpan<byte> buffer, int bits, out int size)
@@ -69,7 +103,7 @@ internal static class VarIntUtil
             ulong tmp = byteValue & 0x7f;
             result |= tmp << shift;
             if (shift > bits)
-                throw new OverflowException(string.Format("Too much data in VarInt.", bits));
+                throw new OverflowException("Too much data in VarInt.");
             size++;
             if ((byteValue & 0x80) != 0x80)
                 return result;
@@ -95,7 +129,7 @@ internal static class VarIntUtil
             ulong tmp = byteValue & 0x7f;
             result |= tmp << shift;
             if (shift > bits)
-                throw new OverflowException(string.Format("Too much data in VarInt.", bits));
+                throw new OverflowException("Too much data in VarInt.");
             if ((byteValue & 0x80) != 0x80)
                 return result;
 

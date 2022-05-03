@@ -2,69 +2,18 @@ using System.Buffers;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using Anvil.Logging;
 using Anvil.Network.API;
 using JetBrains.Annotations;
 
 namespace Anvil.Network;
 
-[PublicAPI]
-public class PacketEventArgs
-{
-    /// <summary>
-    /// Gets a flag indicating if the <see cref="Packet"/> has been marked as invalid.
-    /// </summary>
-    public bool IsInvalid { get; private set; }
-    
-    /// <summary>
-    /// Gets the packet instance.
-    /// </summary>
-    public IPacket Packet { get; set; }
-
-    /// <summary>
-    /// Creates a new instance of the <see cref="PacketEventArgs"/> class.
-    /// </summary>
-    /// <param name="packet">The <see cref="IPacket"/> instance for the event.</param>
-    /// <exception cref="ArgumentNullException">When the <paramref name="packet"/> is <c>null</c>.</exception>
-    public PacketEventArgs(IPacket packet)
-    {
-        Packet = packet ?? throw new ArgumentNullException(nameof(packet));
-    }
-
-    /// <summary>
-    /// Marks the packet as invalid, notifying subscribers that it should likely not be processed.
-    /// </summary>
-    public void Invalidate() => IsInvalid = true;
-}
-
-[PublicAPI]
-public class PacketEventArgs<TPacketId> : PacketEventArgs 
-    where TPacketId : unmanaged, IComparable<TPacketId>, IComparable, IEquatable<TPacketId>
-{
-    /// <summary>
-    /// Gets the unique ID for the packet type.
-    /// </summary>
-    public TPacketId Id { get; }
-    
-    /// <summary>
-    /// Creates a new instance of the <see cref="PacketEventArgs"/> class.
-    /// </summary>
-    /// <param name="id"></param>
-    /// <param name="packet">The <see cref="IPacket"/> instance for the event.</param>
-    /// <exception cref="ArgumentNullException">When the <paramref name="packet"/> is <c>null</c>.</exception>
-    public PacketEventArgs(TPacketId id, IPacket packet) : base(packet)
-    {
-        Id = id;
-        Packet = packet ?? throw new ArgumentNullException(nameof(packet));
-    }
-}
-
+/*
 
 [PublicAPI]
 public class ClientConnection : IClientConnection
 {
-    protected static readonly ILogger Logger = LogManager.GetLogger<ClientConnection>();
+    protected static readonly ILogger Log = LogManager.GetLogger<ClientConnection>();
     
     /// <inheritdoc />
     public event EventHandler<DisconnectEventArgs>? Closed;
@@ -87,7 +36,7 @@ public class ClientConnection : IClientConnection
     protected readonly Task WritingTask;
     protected readonly bool CompressionEnabled;
     protected readonly int CompressionThreshold;
-    
+
     private readonly CancellationTokenSource cancelToken;
 
     public ClientConnection(NetworkDirection direction, Socket socket)
@@ -99,7 +48,7 @@ public class ClientConnection : IClientConnection
         cancelToken = new CancellationTokenSource();
         State = ClientState.Initial;
         IsConnected = true;
-
+        
         ProcessingTask = new Task(DoProcess, cancelToken.Token);
         WritingTask = new Task(DoWrite, cancelToken.Token);
     }
@@ -109,7 +58,12 @@ public class ClientConnection : IClientConnection
         var read = 0;
         do
         {
-            SpinWait.SpinUntil(() => stream.DataAvailable);
+            if (!SpinWait.SpinUntil(() => stream.DataAvailable, 5000))
+            {
+                OnDisconnect(false);
+                break;
+            }
+            
             var r = stream.Read(buffer, read, length - read);
             if (r > 0)
                 read += r; // TODO: -1, etc
@@ -124,16 +78,16 @@ public class ClientConnection : IClientConnection
 
     private void DoProcess()
     {
+        Log.Info($"Listening on {Socket.RemoteEndPoint}");
         var memPool = ArrayPool<byte>.Create();
         try
         {
             using var ns = new NetworkStream(Socket);
-            var reader = new BinaryPacketReader(Encoding.UTF8, BitConverter.IsLittleEndian);
+            var reader = new BinaryPacketReader(BitConverter.IsLittleEndian);
             byte[] payload;
             
             while (!cancelToken.IsCancellationRequested)
             {
-                
                 var id = VarInt.Read(ns);
                 var length = VarInt.Read(ns);
 
@@ -162,12 +116,11 @@ public class ClientConnection : IClientConnection
                     Read(ns, payload, 0, length);
                 }
                 
-                reader.SetPayload(payload, 0, length);
-                // TODO: packet factory and process packet
-                
+                reader.SetBuffer(payload, 0, length);
+                ProcessIncomingPacket(id, reader);
                 memPool.Return(payload);
                 
-                SpinWait.SpinUntil(() => ns.DataAvailable || cancelToken.IsCancellationRequested);
+                SpinWait.SpinUntil(() => cancelToken.IsCancellationRequested || ns.DataAvailable);
             }
         }
         
@@ -180,7 +133,7 @@ public class ClientConnection : IClientConnection
                 case IOException:
                     return;
                 default:
-                    Logger.Error(e, "Unhandled exception occurred while processing network.");
+                    Log.Error(e, "Unhandled exception occurred while processing network.");
                     break;
             }
         }
@@ -190,8 +143,9 @@ public class ClientConnection : IClientConnection
         }
     }
 
-    protected virtual void ProcessPacket(IPacket packet)
+    protected virtual void ProcessIncomingPacket(int id, IPacketReader reader)
     {
+        
     }
     
 
@@ -226,4 +180,7 @@ public class ClientConnection : IClientConnection
         ProcessingTask.Start();
         WritingTask.Start();
     }
+
 }
+
+*/

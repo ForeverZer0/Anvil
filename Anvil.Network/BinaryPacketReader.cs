@@ -1,63 +1,31 @@
-using System.Diagnostics;
-using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Anvil.Network.API;
+using JetBrains.Annotations;
 
 namespace Anvil.Network;
-
-// /// <inheritdoc />
-// protected override ReadOnlySpan<byte> Read(int count)
-// {
-//     if (count > DataBuffer.Length)
-//         throw new InternalBufferOverflowException($"Read operation cannot exceed {DataBuffer.Length} bytes.");
-//
-//     var totalRead = 0;
-//     do
-//     {
-//         SpinWait.SpinUntil(() => BaseStream.DataAvailable);
-//         var read = BaseStream.Read(DataBuffer, totalRead, count - totalRead);
-//         if (read < 0)
-//             break;
-//
-//         totalRead += count;
-//
-//     } while (totalRead < count);
-//
-//     Debug.Assert(totalRead == count);
-//     BytesRead += totalRead;
-//     return new ReadOnlySpan<byte>(DataBuffer, 0, totalRead);
-// }
-//
-// /// <inheritdoc />
-// protected override byte ReadByte()
-// {
-//     SpinWait.SpinUntil(() => BaseStream.DataAvailable);
-//     return (byte) BaseStream.ReadByte();
-// }
-
-
-public class StreamPacketReader
-{
-    
-}
-
 
 /// <summary>
 /// Contains methods for reading binary packet data from an arbitrary buffer.
 /// </summary>
+[PublicAPI]
 public class BinaryPacketReader : IPacketReader
 {
-    private const int SIZEOF_BYTE = sizeof(byte);
-    private const int SIZEOF_SHORT = sizeof(short);
-    private const int SIZEOF_INT = sizeof(int);
-    private const int SIZEOF_LONG = sizeof(long);
-    private const int SIZEOF_FLOAT = sizeof(float);
+    private const int SIZEOF_BYTE   = sizeof(byte);
+    private const int SIZEOF_SHORT  = sizeof(short);
+    private const int SIZEOF_INT    = sizeof(int);
+    private const int SIZEOF_LONG   = sizeof(long);
+    private const int SIZEOF_FLOAT  = sizeof(float);
     private const int SIZEOF_DOUBLE = sizeof(double);
     
+    private int startPos;
+    private int cursorPos;
+    private int cursorEnd;
+    private readonly bool swapEndian;
+    
     /// <summary>
-    /// Gets the encoding used when reading strings.
+    /// Gets the encoding used for reading strings.
     /// </summary>
     public Encoding Encoding { get; }
     
@@ -65,42 +33,67 @@ public class BinaryPacketReader : IPacketReader
     /// Gets the raw buffer representing the data payload of this <see cref="BinaryPacketReader"/>.
     /// </summary>
     public byte[] Buffer { get; private set; }
-
-    private int cursorPos;
-    private int cursorEnd;
-    private readonly bool swapEndian;
     
-    public BinaryPacketReader(byte[] buffer, int offset, int length, Encoding? encoding, bool swapEndian)
+    /// <inheritdoc />
+    public int Position => cursorPos - startPos;
+
+    /// <inheritdoc />
+    public int Length => cursorEnd - startPos;
+
+    /// <summary>
+    /// Creates a new <see cref="BinaryPacketReader"/> instance with the specified <paramref name="buffer"/> as its
+    /// backing storage.
+    /// </summary>
+    /// <param name="buffer">A buffer that will be read from.</param>
+    /// <param name="start">The index into the <paramref name="buffer"/> to begin reading.</param>
+    /// <param name="length">The maximum number of bytes that can be read.</param>
+    /// <param name="swapEndian">Flag indicating is endian-swapping is required.</param>
+    /// <param name="encoding">The encoding to use for text, or <c>null</c> to use the default <see cref="UTF8Encoding"/>.</param>
+    /// <exception cref="ArgumentNullException">When <paramref name="buffer"/> is <c>null</c>.</exception>
+    public BinaryPacketReader(byte[] buffer, int start, int length, bool swapEndian, Encoding? encoding = null)
     {
         Buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
-        cursorPos = offset;
-        cursorEnd = offset + length;
+        startPos = start;
+        cursorPos = start;
+        cursorEnd = start + length;
         Encoding = encoding ?? Encoding.UTF8;
         this.swapEndian = swapEndian;
-        SetPayload(buffer, offset, length);
     }
     
-    public BinaryPacketReader(Encoding? encoding, bool swapEndian)
+    /// <summary>
+    /// Creates a new <see cref="BinaryPacketReader"/> instance with no backing storage.
+    /// </summary>
+    /// <param name="swapEndian">Flag indicating is endian-swapping is required.</param>
+    /// <param name="encoding">The encoding to use for text, or <c>null</c> to use the default <see cref="UTF8Encoding"/>.</param>
+    public BinaryPacketReader(bool swapEndian, Encoding? encoding = null)
     {
         Buffer = Array.Empty<byte>();
+        startPos = 0;
         cursorPos = 0;
         cursorEnd = 0;
         Encoding = encoding ?? Encoding.UTF8;
         this.swapEndian = swapEndian;
     }
 
-    public void SetPayload(byte[]? payload, int offset, int length)
+    /// <summary>
+    /// Sets the underlying data store for the <see cref="BinaryPacketReader"/>.
+    /// </summary>
+    /// <param name="buffer">The buffer to write to.</param>
+    /// <param name="start">The offset into the <paramref name="buffer"/> to begin writing.</param>
+    /// <param name="length">The maximum number of bytes that can be written to the <paramref name="buffer"/>.</param>
+    public void SetBuffer(byte[]? buffer, int start, int length)
     {
-        Buffer = payload ?? Array.Empty<byte>();
-        cursorPos = offset;
-        cursorEnd = offset + length;
+        Buffer = buffer ?? Array.Empty<byte>();
+        startPos = start;
+        cursorPos = start;
+        cursorEnd = start + length;
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AssertConstraints(int count)
+    private void AssertBounds(int count)
     {
         if (cursorPos + count > cursorEnd)
-            throw new InternalBufferOverflowException("An attempt was made to read past the end of the buffer.");
+            throw new EndOfStreamException("An attempt was made to read past the end of the buffer.");
     }
 
     /// <inheritdoc />
@@ -109,14 +102,14 @@ public class BinaryPacketReader : IPacketReader
     /// <inheritdoc />
     public byte ReadInt8()
     {
-        AssertConstraints(SIZEOF_BYTE);
+        AssertBounds(SIZEOF_BYTE);
         return Buffer[cursorPos++];
     }
 
     /// <inheritdoc />
     public short ReadInt16()
     {
-        AssertConstraints(SIZEOF_SHORT);
+        AssertBounds(SIZEOF_SHORT);
         var value = BitConverter.ToInt16(Buffer, cursorPos);
         cursorPos += SIZEOF_SHORT;
         return swapEndian ? value.SwapEndian() : value;
@@ -125,7 +118,7 @@ public class BinaryPacketReader : IPacketReader
     /// <inheritdoc />
     public int ReadInt32()
     {
-        AssertConstraints(SIZEOF_INT);
+        AssertBounds(SIZEOF_INT);
         var value = BitConverter.ToInt32(Buffer, cursorPos);
         cursorPos += SIZEOF_INT;
         return swapEndian ? value.SwapEndian() : value;
@@ -134,7 +127,7 @@ public class BinaryPacketReader : IPacketReader
     /// <inheritdoc />
     public long ReadInt64()
     {
-        AssertConstraints(SIZEOF_LONG);
+        AssertBounds(SIZEOF_LONG);
         var value = BitConverter.ToInt64(Buffer, cursorPos);
         cursorPos += SIZEOF_LONG;
         return swapEndian ? value.SwapEndian() : value;
@@ -170,7 +163,7 @@ public class BinaryPacketReader : IPacketReader
     /// <inheritdoc />
     public float ReadFloat()
     {
-        AssertConstraints(SIZEOF_FLOAT);
+        AssertBounds(SIZEOF_FLOAT);
         var value = BitConverter.ToSingle(Buffer, cursorPos);
         cursorPos += SIZEOF_FLOAT;
         return swapEndian ? value.SwapEndian() : value;
@@ -179,7 +172,7 @@ public class BinaryPacketReader : IPacketReader
     /// <inheritdoc />
     public double ReadDouble()
     {
-        AssertConstraints(SIZEOF_DOUBLE);
+        AssertBounds(SIZEOF_DOUBLE);
         var value = BitConverter.ToDouble(Buffer, cursorPos);
         cursorPos += SIZEOF_DOUBLE;
         return swapEndian ? value.SwapEndian() : value;
@@ -189,7 +182,10 @@ public class BinaryPacketReader : IPacketReader
     public string ReadString()
     {
         var length = ReadVarInt();
-        AssertConstraints(length);
+        if (length == 0)
+            return string.Empty;
+        
+        AssertBounds(length);
         var str = Encoding.GetString(Buffer, cursorPos, length);
         cursorPos += length;
         return str;
@@ -198,7 +194,7 @@ public class BinaryPacketReader : IPacketReader
     /// <inheritdoc />
     public Span<byte> ReadBuffer(int count)
     {
-        AssertConstraints(count);
+        AssertBounds(count);
         var span = new Span<byte>(Buffer, cursorPos, count);
         cursorPos += count;
         return span;
@@ -247,7 +243,7 @@ public class BinaryPacketReader : IPacketReader
     public T ReadStruct<T>() where T : unmanaged
     {
         var count = Unsafe.SizeOf<T>();
-        AssertConstraints(count);
+        AssertBounds(count);
         var span = new ReadOnlySpan<byte>(Buffer, cursorPos, count);
         cursorPos += count;
         return MemoryMarshal.Read<T>(span);

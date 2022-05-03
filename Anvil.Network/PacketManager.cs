@@ -9,31 +9,33 @@ namespace Anvil.Network;
 /// <summary>
 /// Concrete general-purpose implementation of an <see cref="IPacketManager{TClientBoundId,TServerBoundId}"/>.
 /// </summary>
-/// <typeparam name="TClientBoundId">The 32-bit <see cref="Enum"/> type used for client-bound packet IDs.</typeparam>
-/// <typeparam name="TServerBoundId">The 32-bit <see cref="Enum"/> type used for server-bound packet IDs.</typeparam>
+/// <typeparam name="TClientBound">The 32-bit <see cref="Enum"/> type used for client-bound packet IDs.</typeparam>
+/// <typeparam name="TServerBound">The 32-bit <see cref="Enum"/> type used for server-bound packet IDs.</typeparam>
 /// <remarks>
-/// <typeparamref name="TClientBoundId"/> and <typeparamref name="TServerBoundId"/> cannot be the same type.
+/// <typeparamref name="TClientBound"/> and <typeparamref name="TServerBound"/> cannot be the same type.
 /// <para/>
 /// The API <see cref="Emit"/> class is used to dynamically generate and compile constructor delegates for the factory
 /// methods, so it will be on-par with equivalent code of directly calling a constructor of a known-type at compile
 /// time.
+/// <para/>
+/// This class is thread-safe.
 /// </remarks>
 [PublicAPI]
-public class PacketManager<TClientBoundId, TServerBoundId> : IPacketManager<TClientBoundId, TServerBoundId>
-    where TClientBoundId : unmanaged, Enum 
-    where TServerBoundId : unmanaged, Enum
+public class PacketManager<TClientBound, TServerBound> : IPacketManager<TClientBound, TServerBound>
+    where TClientBound : unmanaged, Enum 
+    where TServerBound : unmanaged, Enum
 {
     private readonly ConcurrentDictionary<Type, PacketHash> packetTypes;
-    private readonly ConcurrentDictionary<PacketHash, Func<IPacket<TClientBoundId>>> clientBound;
-    private readonly ConcurrentDictionary<PacketHash, Func<IPacket<TServerBoundId>>> serverBound;
+    private readonly ConcurrentDictionary<PacketHash, Func<IPacket<TClientBound>>> clientBound;
+    private readonly ConcurrentDictionary<PacketHash, Func<IPacket<TServerBound>>> serverBound;
 
     /// <summary>
     /// Creates a new instance of the <see cref="PacketManager{TClientBoundId,TServerBoundId}"/> class.
     /// </summary>
     public PacketManager()
     {
-        clientBound = new ConcurrentDictionary<PacketHash, Func<IPacket<TClientBoundId>>>();
-        serverBound = new ConcurrentDictionary<PacketHash, Func<IPacket<TServerBoundId>>>();
+        clientBound = new ConcurrentDictionary<PacketHash, Func<IPacket<TClientBound>>>();
+        serverBound = new ConcurrentDictionary<PacketHash, Func<IPacket<TServerBound>>>();
         packetTypes = new ConcurrentDictionary<Type, PacketHash>();
     }
 
@@ -58,7 +60,7 @@ public class PacketManager<TClientBoundId, TServerBoundId> : IPacketManager<TCli
         var hash = new PacketHash(direction, state, id);
         if (direction.HasFlag(NetworkDirection.ClientBound))
         {
-            var func = Emit.Ctor<Func<IPacket<TClientBoundId>>>(type);
+            var func = Emit.Ctor<Func<IPacket<TClientBound>>>(type);
             if (clientBound.TryAdd(hash, func))
             {
                 packetTypes.TryAdd(type, hash);
@@ -68,7 +70,7 @@ public class PacketManager<TClientBoundId, TServerBoundId> : IPacketManager<TCli
 
         if (direction.HasFlag(NetworkDirection.ServerBound))
         {
-            var func = Emit.Ctor<Func<IPacket<TServerBoundId>>>(type);
+            var func = Emit.Ctor<Func<IPacket<TServerBound>>>(type);
             if (serverBound.TryAdd(hash, func))
             {
                 packetTypes.TryAdd(type, hash);
@@ -80,15 +82,15 @@ public class PacketManager<TClientBoundId, TServerBoundId> : IPacketManager<TCli
     }
     
     /// <inheritdoc />
-    public bool Register(ClientState state, TClientBoundId id, Type type)
+    public bool Register(ClientState state, TClientBound id, Type type)
     {
-        return Register(NetworkDirection.ClientBound, state, Unsafe.As<TClientBoundId, int>(ref id), type);
+        return Register(NetworkDirection.ClientBound, state, Unsafe.As<TClientBound, int>(ref id), type);
     }
 
     /// <inheritdoc />
-    public bool Register(ClientState state, TServerBoundId id, Type type)
+    public bool Register(ClientState state, TServerBound id, Type type)
     {
-        return Register(NetworkDirection.ServerBound, state, Unsafe.As<TServerBoundId, int>(ref id), type);
+        return Register(NetworkDirection.ServerBound, state, Unsafe.As<TServerBound, int>(ref id), type);
     }
 
     /// <summary>
@@ -152,9 +154,9 @@ public class PacketManager<TClientBoundId, TServerBoundId> : IPacketManager<TCli
     }
 
     /// <inheritdoc />
-    public IPacket<TClientBoundId> Factory(ClientState state, TClientBoundId id)
+    public IPacket<TClientBound> Factory(ClientState state, TClientBound id)
     {
-        var hash = new PacketHash(NetworkDirection.ClientBound, state, Unsafe.As<TClientBoundId, int>(ref id));
+        var hash = new PacketHash(NetworkDirection.ClientBound, state, Unsafe.As<TClientBound, int>(ref id));
         if (clientBound.TryGetValue(hash, out var func))
             return func.Invoke();
 
@@ -162,9 +164,9 @@ public class PacketManager<TClientBoundId, TServerBoundId> : IPacketManager<TCli
     }
     
     /// <inheritdoc />
-    public IPacket<TServerBoundId> Factory(ClientState state, TServerBoundId id)
+    public IPacket<TServerBound> Factory(ClientState state, TServerBound id)
     {
-        var hash = new PacketHash(NetworkDirection.ServerBound, state, Unsafe.As<TServerBoundId, int>(ref id));
+        var hash = new PacketHash(NetworkDirection.ServerBound, state, Unsafe.As<TServerBound, int>(ref id));
         if (serverBound.TryGetValue(hash, out var func))
             return func.Invoke();
 
@@ -180,7 +182,7 @@ public class PacketManager<TClientBoundId, TServerBoundId> : IPacketManager<TCli
     /// <typeparam name="TPacket">The packet type being returned.</typeparam>
     /// <returns>A newly created packet instance.</returns>
     /// <exception cref="KeyNotFoundException">Packet type is not registered.</exception>
-    public TPacket Factory<TPacket>(ClientState state, TClientBoundId id) where TPacket : IPacket<TClientBoundId>
+    public TPacket Factory<TPacket>(ClientState state, TClientBound id) where TPacket : IPacket<TClientBound>
     {
         return (TPacket) Factory(state, id);
     }
@@ -194,7 +196,7 @@ public class PacketManager<TClientBoundId, TServerBoundId> : IPacketManager<TCli
     /// <typeparam name="TPacket">The packet type being returned.</typeparam>
     /// <returns>A newly created packet instance.</returns>
     /// <exception cref="KeyNotFoundException">Packet type is not registered.</exception>
-    public TPacket Factory<TPacket>(ClientState state, TServerBoundId id) where TPacket : IPacket<TServerBoundId>
+    public TPacket Factory<TPacket>(ClientState state, TServerBound id) where TPacket : IPacket<TServerBound>
     {
         return (TPacket) Factory(state, id);
     }

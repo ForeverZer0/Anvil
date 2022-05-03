@@ -10,6 +10,16 @@ namespace Anvil.Network.API;
 public interface IPacket
 {
     /// <summary>
+    /// Gets the maximum size of this packet, in bytes.
+    /// </summary>
+    /// <remarks>
+    /// While a memory pool is used to avoid costly allocations and GC pressure, this hint allows the system to supply
+    /// the most efficient sized buffer for the underlying storage when writing packets, and also ensure there will be
+    /// no overflow.
+    /// </remarks>
+    int MaximumSize { get; }
+    
+    /// <summary>
     /// Gets a unique identifier for this <see cref="IPacket"/>.
     /// </summary>
     int PacketId { get; }

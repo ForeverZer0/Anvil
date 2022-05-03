@@ -10,6 +10,16 @@ namespace Anvil.Network.API;
 public interface IPacketReader
 {
     /// <summary>
+    /// Gets the total length of the data in the <see cref="IPacketReader"/>;
+    /// </summary>
+    int Length { get; }
+    
+    /// <summary>
+    /// Gets the current position of the data cursor within the <see cref="IPacketReader"/>.
+    /// </summary>
+    int Position { get; }
+    
+    /// <summary>
     /// Reads a <see cref="bool"/> value from the underlying data store.
     /// </summary>
     /// <returns>The <see cref="bool"/> value.</returns>

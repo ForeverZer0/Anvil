@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 
 namespace Anvil;
@@ -60,6 +61,19 @@ public static class VarLong
         if (zigzag)
             return VarIntUtil.Encode(unchecked((ulong) VarIntUtil.EncodeZigZag(value, 64)));
         return VarIntUtil.Encode(unchecked((ulong) value));
+    }
+    
+    /// <summary>
+    /// Encodes the given <paramref name="value"/> into the given <paramref name="buffer"/>.
+    /// </summary>
+    /// <param name="buffer">A buffer to receive the result.</param>
+    /// <param name="value">The value to encode.</param>
+    /// <param name="zigzag">Flag indicating if the value will be ZigZag encoded.</param>
+    /// <returns>The number of bytes written into the <paramref name="buffer"/>.</returns>
+    public static int Write(Span<byte> buffer, long value, bool zigzag = false) 
+    {
+        var v = zigzag ? VarIntUtil.EncodeZigZag(value, 64) : value;
+        return VarIntUtil.Encode(buffer, Unsafe.As<long, ulong>(ref v));
     }
 
     /// <summary>
