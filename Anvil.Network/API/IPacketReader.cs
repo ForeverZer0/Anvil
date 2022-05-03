@@ -1,6 +1,9 @@
+using System.Net.Sockets;
 using JetBrains.Annotations;
 
 namespace Anvil.Network.API;
+
+// TODO: Maximum packet size
 
 /// <summary>
 /// Represent an object containing methods for reading binary formatted data, typically transmitted over a network, back
@@ -10,113 +13,97 @@ namespace Anvil.Network.API;
 public interface IPacketReader
 {
     /// <summary>
-    /// Gets the total length of the data in the <see cref="IPacketReader"/>;
+    /// Gets a value indicating if there is pending data that can be read from the underlying <see cref="BaseStream"/>.
     /// </summary>
-    int Length { get; }
+    public bool Available
+    {
+        get
+        {
+            if (BaseStream is NetworkStream ns)
+                return ns.DataAvailable;
+            if (BaseStream.CanSeek)
+                return BaseStream.Position < BaseStream.Length;
+            return false;
+        }
+    }
     
     /// <summary>
-    /// Gets the current position of the data cursor within the <see cref="IPacketReader"/>.
+    /// Exposes access to the underlying <see cref="Stream"/> used by the <see cref="IPacketReader"/>.
     /// </summary>
-    int Position { get; }
+    public Stream BaseStream { get; }
     
-    /// <summary>
-    /// Reads a <see cref="bool"/> value from the underlying data store.
-    /// </summary>
-    /// <returns>The <see cref="bool"/> value.</returns>
-    bool ReadBool();
-    
-    /// <summary>
-    /// Reads a <see cref="byte"/> value from the underlying data store.
-    /// </summary>
-    /// <returns>The <see cref="byte"/> value.</returns>
-    byte ReadInt8();
+    /// <inheritdoc cref="BinaryReader.ReadBytes(int)" />
+    byte[] ReadBytes(int count);
 
-    /// <summary>
-    /// Reads a <see cref="short"/> value from the underlying data store.
-    /// </summary>
-    /// <returns>The <see cref="short"/> value.</returns>
+    /// <inheritdoc cref="BinaryReader.ReadByte()" />
+    /// <typeparam name="TEnum8">An <see cref="Enum"/> type backed by a 8-bit integer.</typeparam>
+    TEnum8 ReadByte<TEnum8>() where TEnum8 : unmanaged, Enum;
+
+    /// <inheritdoc cref="BinaryReader.ReadByte()" />
+    byte ReadByte();
+
+    /// <inheritdoc cref="BinaryReader.ReadInt16()" />
+    /// <typeparam name="TEnum16">An <see cref="Enum"/> type backed by a 16-bit integer.</typeparam>
+    TEnum16 ReadInt16<TEnum16>() where TEnum16 : unmanaged, Enum;
+
+    /// <inheritdoc cref="BinaryReader.ReadInt16()" />
     short ReadInt16();
-    
-    /// <summary>
-    /// Reads a <see cref="int"/> value from the underlying data store.
-    /// </summary>
-    /// <returns>The <see cref="int"/> value.</returns>
+
+    /// <inheritdoc cref="BinaryReader.ReadInt32()" />
+    /// <typeparam name="TEnum32">An <see cref="Enum"/> type backed by a 32-bit integer.</typeparam>
+    TEnum32 ReadInt32<TEnum32>() where TEnum32 : unmanaged, Enum;
+
+    /// <inheritdoc cref="BinaryReader.ReadInt32()" />
     int ReadInt32();
 
-    /// <summary>
-    /// Reads a <see cref="long"/> value from the underlying data store.
-    /// </summary>
-    /// <returns>The <see cref="long"/> value.</returns>
+    /// <inheritdoc cref="BinaryReader.ReadInt64()" />
+    /// <typeparam name="TEnum64">An <see cref="Enum"/> type backed by a 64-bit integer.</typeparam>
+    TEnum64 ReadInt64<TEnum64>() where TEnum64 : unmanaged, Enum;
+
+    /// <inheritdoc cref="BinaryReader.ReadInt64()" />
     long ReadInt64();
 
-    /// <summary>
-    /// Reads a variable length integer from the underlying data store.
-    /// </summary>
-    /// <returns>The value as a <see cref="int"/>.</returns>
-    /// <remarks>A <see cref="VarInt"/> only contains the number of bytes required to fully express the value.</remarks>
+    /// <inheritdoc cref="BinaryReader.Read7BitEncodedInt()" />
+    /// <typeparam name="TEnum32">An <see cref="Enum"/> type backed by a 32-bit integer.</typeparam>
+    TEnum32 ReadVarInt<TEnum32>();
+
+    /// <inheritdoc cref="BinaryReader.Read7BitEncodedInt()" />
     int ReadVarInt();
 
-    /// <summary>
-    /// Reads a variable length integer from the underlying data store and returns it as an <see cref="Enum"/>.
-    /// </summary>
-    /// <typeparam name="TEnum32">An <see cref="Enum"/> type that is backed by a 32-bit integer.</typeparam>
-    /// <returns>The value as a <typeparamref name="TEnum32"/>..</returns>
-    /// <remarks>A <see cref="VarInt"/> only contains the number of bytes required to fully express the value.</remarks>
-    TEnum32 ReadVarInt<TEnum32>();
-    
-    /// <summary>
-    /// Reads a variable length integer from the underlying data store.
-    /// </summary>
-    /// <returns>The value as a <see cref="long"/>.</returns>
-    /// <remarks>A <see cref="VarLong"/> only contains the number of bytes required to fully express the value.</remarks>
+    /// <inheritdoc cref="BinaryReader.Read7BitEncodedInt64()" />
+    /// <typeparam name="TEnum64">An <see cref="Enum"/> type backed by a 64-bit integer.</typeparam>
+    TEnum64 ReadVarLong<TEnum64>();
+
+    /// <inheritdoc cref="BinaryReader.Read7BitEncodedInt64()" />
     long ReadVarLong();
 
-    /// <summary>
-    /// Reads a <see cref="float"/> value from the underlying data store.
-    /// </summary>
-    /// <returns>The <see cref="float"/> value.</returns>
-    float ReadFloat();
-
-    /// <summary>
-    /// Reads a <see cref="double"/> value from the underlying data store.
-    /// </summary>
-    /// <returns>The <see cref="double"/> value.</returns>
+    /// <inheritdoc cref="BinaryReader.ReadBoolean()" />
+    bool ReadBool();
+    
+    /// <inheritdoc cref="BinaryReader.ReadDouble()" />
     double ReadDouble();
     
-    /// <summary>
-    /// Reads a <see cref="string"/> value from the underlying data store.
-    /// </summary>
-    /// <returns>The <see cref="string"/> value.</returns>
-    /// <remarks>Implementors must return an empty string when no data is present.</remarks>
+    /// <inheritdoc cref="BinaryReader.ReadHalf()" />
+    Half ReadHalf();
+    
+    /// <inheritdoc cref="BinaryReader.ReadSingle()" />
+    float ReadFloat();
+    
+    /// <inheritdoc cref="BinaryReader.ReadString()" />
     string ReadString();
 
     /// <summary>
-    /// Reads a an arbitrary block of bytes form the underlying data store.
+    /// Reads an array from the input stream. The array is prefixed with the length, encoded with an integer seven bits
+    /// at a time.
     /// </summary>
-    /// <param name="count">The number of bytes to read.</param>
-    /// <returns>A <see cref="ReadOnlySpan{T}"/> over a region of the internal buffer.</returns>
-    Span<byte> ReadBuffer(int count);
-
+    /// <typeparam name="T">An unmanaged value type.</typeparam>
+    /// <returns></returns>
+    T[] ReadArray<T>() where T : unmanaged;
+    
     /// <summary>
-    /// Reads an arbitrary block of data from the underlying data store as the specified primitive type.
+    /// Reads a 8-byte <see cref="DateTime"/> structure from the current stream and advances the stream by eight bytes. 
     /// </summary>
-    /// <param name="count">The number of items to read.</param>
-    /// <typeparam name="T">A primitive/blittable value type.</typeparam>
-    /// <returns>A <see cref="ReadOnlySpan{T}"/> over a region of the internal buffer.</returns>
-    Span<T> ReadBuffer<T>(int count) where T : unmanaged;
-
-    /// <summary>
-    /// Reads a <see cref="float"/> value from the underlying data store.
-    /// </summary>
-    /// <typeparam name="TEnum">An <see cref="Enum"/> type.</typeparam>
-    /// <returns>The <see cref="Enum"/> value.</returns>
-    /// <remarks>Enumeration are backed by integers of different sizes, and implementor must account for this.</remarks>
-    TEnum ReadEnum<TEnum>() where TEnum : struct, Enum;
-
-    /// <summary>
-    /// Reads an arbitrary value type from the stream.
-    /// </summary>
-    /// <typeparam name="T">A primitive/blittable value type.</typeparam>
-    /// <returns>The structure value.</returns>
-    T ReadStruct<T>() where T : unmanaged;
+    /// <returns>A 8-byte <see cref="DateTime"/> structure value read from the current stream.</returns>
+    DateTime ReadTime();
 }
+

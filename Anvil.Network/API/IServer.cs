@@ -54,7 +54,7 @@ public interface IServer
     /// <summary>
     /// Initializes the server and begins asynchronously listening for client connections.
     /// </summary>
-    void Start();
+    Task StartAsync();
 
     /// <summary>
     /// Disconnects any connected clients and closes the server.

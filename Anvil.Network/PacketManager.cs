@@ -1,6 +1,9 @@
+using System.Buffers;
 using System.Collections.Concurrent;
+using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Anvil.Logging;
 using Anvil.Network.API;
 using JetBrains.Annotations;
 
@@ -17,26 +20,36 @@ namespace Anvil.Network;
 /// The API <see cref="Emit"/> class is used to dynamically generate and compile constructor delegates for the factory
 /// methods, so it will be on-par with equivalent code of directly calling a constructor of a known-type at compile
 /// time.
-/// <para/>
-/// This class is thread-safe.
 /// </remarks>
 [PublicAPI]
 public class PacketManager<TClientBound, TServerBound> : IPacketManager<TClientBound, TServerBound>
     where TClientBound : unmanaged, Enum 
     where TServerBound : unmanaged, Enum
 {
+    private readonly ArrayPool<byte> memoryPool;
     private readonly ConcurrentDictionary<Type, PacketHash> packetTypes;
-    private readonly ConcurrentDictionary<PacketHash, Func<IPacket<TClientBound>>> clientBound;
-    private readonly ConcurrentDictionary<PacketHash, Func<IPacket<TServerBound>>> serverBound;
+    private readonly ConcurrentDictionary<PacketHash, Func<IPacket>> packetActivators;
+    private readonly ILogger? log;
+    
+    public EventHandler<ClientPacketEventArgs<TServerBound>>? ClientPacketReceived;
+    
+    public EventHandler<PacketEventArgs<TClientBound>>? ServerPacketReceived;
 
+    /// <summary>
+    /// Gets a the minimum number of bytes required to enable compression of data sent over the network, or <c>-1</c>
+    /// to indicate that compression is disabled.
+    /// </summary>
+    public int CompressionThreshold { get; }
+    
     /// <summary>
     /// Creates a new instance of the <see cref="PacketManager{TClientBoundId,TServerBoundId}"/> class.
     /// </summary>
-    public PacketManager()
+    public PacketManager(ILogger? logger, int compressionThreshold = -1)
     {
-        clientBound = new ConcurrentDictionary<PacketHash, Func<IPacket<TClientBound>>>();
-        serverBound = new ConcurrentDictionary<PacketHash, Func<IPacket<TServerBound>>>();
+        packetActivators = new ConcurrentDictionary<PacketHash, Func<IPacket>>();
         packetTypes = new ConcurrentDictionary<Type, PacketHash>();
+        memoryPool = ArrayPool<byte>.Create();
+        log = logger;
     }
 
     /// <summary>
@@ -58,24 +71,12 @@ public class PacketManager<TClientBound, TServerBound> : IPacketManager<TClientB
     public bool Register(NetworkDirection direction, ClientState state, int id, Type type)
     {
         var hash = new PacketHash(direction, state, id);
-        if (direction.HasFlag(NetworkDirection.ClientBound))
+        var func = Emit.Ctor<Func<IPacket>>(type);
+        
+        if (packetActivators.TryAdd(hash, func))
         {
-            var func = Emit.Ctor<Func<IPacket<TClientBound>>>(type);
-            if (clientBound.TryAdd(hash, func))
-            {
-                packetTypes.TryAdd(type, hash);
-                return true;
-            }
-        }
-
-        if (direction.HasFlag(NetworkDirection.ServerBound))
-        {
-            var func = Emit.Ctor<Func<IPacket<TServerBound>>>(type);
-            if (serverBound.TryAdd(hash, func))
-            {
-                packetTypes.TryAdd(type, hash);
-                return true;
-            }
+            packetTypes.TryAdd(type, hash);
+            return true;
         }
 
         return false;
@@ -112,23 +113,22 @@ public class PacketManager<TClientBound, TServerBound> : IPacketManager<TClientB
     public IPacket Factory(NetworkDirection direction, ClientState state, int id)
     {
         var hash = new PacketHash(direction, state, id);
-        switch (direction)
-        {
-            case NetworkDirection.ServerBound:
-                if (serverBound.TryGetValue(hash, out var server))
-                    return server.Invoke();
-                break;
-            case NetworkDirection.ClientBound:
-                if (clientBound.TryGetValue(hash, out var client))
-                    return client.Invoke();
-                break;
-            case NetworkDirection.None:
-            case NetworkDirection.Both:
-            default:
-                throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
-        }
-
+        if (packetActivators.TryGetValue(hash, out var activator))
+            return activator.Invoke();
+        
         throw new KeyNotFoundException("No packet is registered with specified direction, state, and ID.");
+    }
+    
+    /// <inheritdoc />
+    public IPacket Factory(ClientState state, TClientBound id)
+    {
+        return Factory(NetworkDirection.ClientBound, state, Unsafe.As<TClientBound, int>(ref id));
+    }
+    
+    /// <inheritdoc />
+    public IPacket Factory(ClientState state, TServerBound id)
+    {
+        return Factory(NetworkDirection.ClientBound, state, Unsafe.As<TServerBound, int>(ref id));
     }
 
     /// <summary>
@@ -152,26 +152,6 @@ public class PacketManager<TClientBound, TServerBound> : IPacketManager<TClientB
     {
         return (TPacket) Factory(direction, state, id);
     }
-
-    /// <inheritdoc />
-    public IPacket<TClientBound> Factory(ClientState state, TClientBound id)
-    {
-        var hash = new PacketHash(NetworkDirection.ClientBound, state, Unsafe.As<TClientBound, int>(ref id));
-        if (clientBound.TryGetValue(hash, out var func))
-            return func.Invoke();
-
-        throw new KeyNotFoundException("No packet is registered with specified state and ID.");
-    }
-    
-    /// <inheritdoc />
-    public IPacket<TServerBound> Factory(ClientState state, TServerBound id)
-    {
-        var hash = new PacketHash(NetworkDirection.ServerBound, state, Unsafe.As<TServerBound, int>(ref id));
-        if (serverBound.TryGetValue(hash, out var func))
-            return func.Invoke();
-
-        throw new KeyNotFoundException("No packet is registered with specified state and ID.");
-    }
     
     /// <summary>
     /// Creates a client-bound packet with the <see cref="Type"/> registered under the specified
@@ -182,7 +162,7 @@ public class PacketManager<TClientBound, TServerBound> : IPacketManager<TClientB
     /// <typeparam name="TPacket">The packet type being returned.</typeparam>
     /// <returns>A newly created packet instance.</returns>
     /// <exception cref="KeyNotFoundException">Packet type is not registered.</exception>
-    public TPacket Factory<TPacket>(ClientState state, TClientBound id) where TPacket : IPacket<TClientBound>
+    public TPacket Factory<TPacket>(ClientState state, TClientBound id) where TPacket : IPacket
     {
         return (TPacket) Factory(state, id);
     }
@@ -196,7 +176,7 @@ public class PacketManager<TClientBound, TServerBound> : IPacketManager<TClientB
     /// <typeparam name="TPacket">The packet type being returned.</typeparam>
     /// <returns>A newly created packet instance.</returns>
     /// <exception cref="KeyNotFoundException">Packet type is not registered.</exception>
-    public TPacket Factory<TPacket>(ClientState state, TServerBound id) where TPacket : IPacket<TServerBound>
+    public TPacket Factory<TPacket>(ClientState state, TServerBound id) where TPacket : IPacket
     {
         return (TPacket) Factory(state, id);
     }
@@ -257,5 +237,79 @@ public class PacketManager<TClientBound, TServerBound> : IPacketManager<TClientB
 
         return count;
     }
-  
+
+    public async Task ReadClientBound(IPacketReader reader, ClientState state, CancellationToken token)
+    {
+        var data = await ReadPacket<TClientBound>(reader, NetworkDirection.ClientBound, state, token);
+        if (data is null)
+            return;
+        
+        ServerPacketReceived?.Invoke(this, new PacketEventArgs<TClientBound>(data));
+    }
+    
+    public async Task ReadServerBound(IPacketReader reader, IConnection client, CancellationToken token)
+    {
+        var data = await ReadPacket<TServerBound>(reader, NetworkDirection.ServerBound, client.State, token);
+        if (data is null)
+            return;
+        
+        ClientPacketReceived?.Invoke(this, new ClientPacketEventArgs<TServerBound>(client, data));
+    }
+
+    private async Task<PacketData<T>?> ReadPacket<T>(IPacketReader reader, NetworkDirection direction, ClientState state, CancellationToken token) where T : unmanaged, Enum
+    {
+        if (!reader.Available)
+            return null;
+        
+        var time = reader.ReadTime();
+        var id = reader.ReadVarInt();
+        var uncompressedSize = reader.ReadVarInt();
+        var compressedSize = CompressionThreshold >= 0 && uncompressedSize > CompressionThreshold
+            ? reader.ReadVarInt()
+            : -1;
+        
+        var read = 0;
+        var readSize = compressedSize > -1 ? compressedSize : uncompressedSize;
+        var buffer = memoryPool.Rent(readSize);
+        do
+        {
+            read += await reader.BaseStream.ReadAsync(buffer, read, readSize - read, token);
+        } while (read < readSize);
+
+        try
+        {
+            var packet = Factory(direction, state, id);
+            var streamBuffer = new MemoryStream(buffer);
+            if (compressedSize >= 0)
+            {
+                await using var gzip = new GZipStream(streamBuffer, CompressionMode.Decompress);
+                packet.Decode(new PacketReader(gzip));
+            }
+            else
+            {
+                packet.Decode(new PacketReader(streamBuffer));
+            }
+
+            return new PacketData<T>(time, Unsafe.As<int, T>(ref id), packet);
+
+        }
+        catch (KeyNotFoundException e)
+        {
+            log?.Error(e, $"Packet is not registered with key: {direction}, {state}, and {id}");
+        }
+        catch (ArgumentOutOfRangeException e)
+        {
+            log?.Error(e, "Invalid direction specified.");
+        }
+        catch (Exception e)
+        {
+            log?.Error(e, "Packet error occurred.");
+        }
+        finally
+        {
+            memoryPool.Return(buffer);
+        }
+
+        return null;
+    }
 }

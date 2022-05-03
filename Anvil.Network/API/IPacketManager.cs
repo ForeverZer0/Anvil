@@ -24,7 +24,7 @@ public interface IPacketManager<TClientBound, TServerBound>
     /// </summary>
     /// <param name="state">The client state that the packet is valid with.</param>
     /// <param name="id">The unique identifier for this packet.</param>
-    /// <param name="type">The type of the packet, which must be assignable to <see cref="IPacket{TPacketId}"/>.</param>
+    /// <param name="type">The type of the packet, which must be assignable to <see cref="IPacket"/>.</param>
     /// <returns>
     /// <c>true</c> if type was successfully registered, otherwise <c>false</c> if an error occurred or a client-bound
     /// packet with the matching <paramref name="state"/> and <paramref name="id"/> is already registered.
@@ -37,7 +37,7 @@ public interface IPacketManager<TClientBound, TServerBound>
     /// </summary>
     /// <param name="state">The client state that the packet is valid with.</param>
     /// <param name="id">The unique identifier for this packet.</param>
-    /// <param name="type">The type of the packet, which must be assignable to <see cref="IPacket{TPacketId}"/>.</param>
+    /// <param name="type">The type of the packet, which must be assignable to <see cref="IPacket"/>.</param>
     /// <returns>
     /// <c>true</c> if type was successfully registered, otherwise <c>false</c> if an error occurred or a server-bound
     /// packet with the matching <paramref name="state"/> and <paramref name="id"/> is already registered.
@@ -52,7 +52,7 @@ public interface IPacketManager<TClientBound, TServerBound>
     /// <param name="id">The unique identifier for this packet.</param>
     /// <returns>A newly created packet instance.</returns>
     /// <exception cref="KeyNotFoundException">Packet type is not registered.</exception>
-    IPacket<TClientBound> Factory(ClientState state, TClientBound id);
+    IPacket Factory(ClientState state, TClientBound id);
 
     /// <summary>
     /// Creates a server-bound packet with the <see cref="Type"/> registered under the specified
@@ -62,7 +62,7 @@ public interface IPacketManager<TClientBound, TServerBound>
     /// <param name="id">The unique identifier for this packet.</param>
     /// <returns>A newly created packet instance.</returns>
     /// <exception cref="KeyNotFoundException">Packet type is not registered.</exception>
-    IPacket<TServerBound> Factory(ClientState state, TServerBound id);
+    IPacket Factory(ClientState state, TServerBound id);
 
     /// <summary>
     /// Scans the specified <see cref="Assembly"/> for packet types decorated with the <see cref="PacketAttribute"/>,

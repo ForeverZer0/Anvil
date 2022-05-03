@@ -10,117 +10,90 @@ namespace Anvil.Network.API;
 public interface IPacketWriter
 {
     /// <summary>
-    /// Writes a <see cref="bool"/> value to the underlying data store.
+    /// Exposes access to the underlying <see cref="Stream"/> used by the <see cref="IPacketWriter"/>.
     /// </summary>
-    /// <param name="value">The <see cref="bool"/> value to write.</param>
-    void WriteBool(bool value);
+    public Stream BaseStream { get; }
     
-    /// <summary>
-    /// Writes a <see cref="byte"/> value to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="byte"/> value to write.</param>
-    void WriteInt8(byte value);
+    /// <inheritdoc cref="BinaryWriter.Write(byte[])" />
+    void WriteBytes(byte[] buffer);
+    
+    /// <inheritdoc cref="BinaryWriter.Write(ReadOnlySpan{byte})" />
+    void WriteBytes(ReadOnlySpan<byte> buffer);
 
-    /// <summary>
-    /// Writes a <see cref="short"/> value to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="short"/> value to write.</param>
+    /// <inheritdoc cref="BinaryWriter.Write(byte)" />
+    /// <typeparam name="TEnum8">An <see cref="Enum"/> type backed by a 8-bit integer.</typeparam>
+    void WriteByte<TEnum8>(TEnum8 value) where TEnum8 : unmanaged, Enum;
+
+    /// <inheritdoc cref="BinaryWriter.Write(byte)" />
+    void WriteByte(byte value);
+
+    /// <inheritdoc cref="BinaryWriter.Write(short)" />
+    /// <typeparam name="TEnum16">An <see cref="Enum"/> type backed by a 16-bit integer.</typeparam>
+    void WriteInt16<TEnum16>(TEnum16 value) where TEnum16 : unmanaged, Enum;
+
+    /// <inheritdoc cref="BinaryWriter.Write(short)" />
     void WriteInt16(short value);
-    
-    /// <summary>
-    /// Writes a <see cref="int"/> value to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="int"/> value to write.</param>
+
+    /// <inheritdoc cref="BinaryWriter.Write(int)" />
+    /// <typeparam name="TEnum32">An <see cref="Enum"/> type backed by a 32-bit integer.</typeparam>
+    void WriteInt32<TEnum32>(TEnum32 value) where TEnum32 : unmanaged, Enum;
+
+    /// <inheritdoc cref="BinaryWriter.Write(int)" />
     void WriteInt32(int value);
 
-    /// <summary>
-    /// Writes a <see cref="long"/> value to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="long"/> value to write.</param>
-    void WriteInt64(long value);
-    
-    /// <summary>
-    /// Writes a variable length integer (<see cref="VarInt"/>) to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="int"/> value to write.</param>
-    /// <remarks>A <see cref="VarInt"/> only contains the number of bytes required to fully express the value.</remarks>
-    void WriteVarInt(int value);
-    
-    /// <summary>
-    /// Writes a <see cref="Enum"/> as a variable length integer (<see cref="VarInt"/>) to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="Enum"/> value to write.</param>
-    /// <typeparam name="TEnum32">An <see cref="Enum"/> type that is backed by a 32-bit integer.</typeparam>
-    /// <remarks>A <see cref="VarInt"/> only contains the number of bytes required to fully express the value.</remarks>
-    void WriteVarInt<TEnum32>(TEnum32 value) where TEnum32 : unmanaged, Enum;
-    
-    /// <summary>
-    /// Writes a variable length integer (<see cref="VarLong"/>) to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="long"/> value to write.</param>
-    /// <remarks>A <see cref="VarLong"/> only contains the number of bytes required to fully express the value.</remarks>
-    void WriteVarLong(long value);
-    
-    /// <summary>
-    /// Writes a <see cref="float"/> value to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="float"/> value to write.</param>
-    void WriteFloat(float value);
+    /// <inheritdoc cref="BinaryWriter.Write(long)" />
+    /// <typeparam name="TEnum64">An <see cref="Enum"/> type backed by a 64-bit integer.</typeparam>
+    void WriteInt64<TEnum64>(TEnum64 value) where TEnum64 : unmanaged, Enum;
 
-    /// <summary>
-    /// Writes a <see cref="double"/> value to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="double"/> value to write.</param>
+    /// <inheritdoc cref="BinaryWriter.Write(long)" />
+    void WriteInt64(long value);
+
+    /// <inheritdoc cref="BinaryWriter.Write7BitEncodedInt(int)" />
+    /// <typeparam name="TEnum32">An <see cref="Enum"/> type backed by a 32-bit integer.</typeparam>
+    void WriteVarInt<TEnum32>(TEnum32 value);
+
+    /// <inheritdoc cref="BinaryWriter.Write7BitEncodedInt(int)" />
+    void WriteVarInt(int value);
+
+    /// <inheritdoc cref="BinaryWriter.Write7BitEncodedInt64(long)" />
+    /// <typeparam name="TEnum64">An <see cref="Enum"/> type backed by a 64-bit integer.</typeparam>
+    void WriteVarLong<TEnum64>(TEnum64 value);
+
+    /// <inheritdoc cref="BinaryWriter.Write7BitEncodedInt64(long)" />
+    void WriteVarLong(long value);
+
+    /// <inheritdoc cref="BinaryWriter.Write(bool)" />
+    void WriteBool(bool value);
+    
+    /// <inheritdoc cref="BinaryWriter.Write(double)" />
     void WriteDouble(double value);
     
-    /// <summary>
-    /// Writes a <see cref="string"/> value to the underlying data store.
-    /// </summary>
-    /// <param name="value">The <see cref="string"/> value to write.</param>
-    void WriteString(string? value);
+    /// <inheritdoc cref="BinaryWriter.Write(Half)" />
+    void WriteHalf(Half value);
+    
+    /// <inheritdoc cref="BinaryWriter.Write(float)" />
+    void WriteFloat(float value);
+    
+    /// <inheritdoc cref="BinaryWriter.Write(string)" />
+    void WriteString(string value);
 
     /// <summary>
-    /// Writes a <see cref="Enum"/> value to the underlying data store.
+    /// Writes an array to the input stream. The array is prefixed with the length, encoded with an integer seven bits
+    /// at a time.
     /// </summary>
-    /// <param name="value">The <see cref="Enum"/> value to write.</param>
-    /// <typeparam name="TEnum">An <see cref="Enum"/> type.</typeparam>
-    /// <remarks>Enumeration are backed by integers of different sizes, and implementor must account for this.</remarks>
-    void WriteEnum<TEnum>(TEnum value) where TEnum : struct, Enum;
-
-    /// <summary>
-    /// Writes a <see cref="bool"/> value to the underlying data store.
-    /// </summary>
-    /// <param name="value">The structure value to write.</param>
-    /// <typeparam name="T">A primitive/blittable value type.</typeparam>
-    void WriteStruct<T>(T value) where T : unmanaged;
-
-    /// <summary>
-    /// Writes an arbitrary buffer of bytes to the underlying data store.
-    /// </summary>
-    /// <param name="value">A <see cref="ReadOnlySpan{T}"/> containing the data to write.</param>
-    void WriteBuffer(ReadOnlySpan<byte> value);
+    /// <param name="array">The array instance to write.</param>
+    /// <typeparam name="T">An unmanaged value type.</typeparam>
+    void WriteArray<T>(T[] array) where T : unmanaged;
     
     /// <summary>
-    /// Writes an arbitrary buffer of bytes to the underlying data store.
+    /// Writes a 8-byte <see cref="DateTime"/> structure to the current stream and advances the stream by eight bytes. 
     /// </summary>
-    /// <param name="buffer">A array containing the data to write.</param>
-    /// <param name="start">The index into the <paramref name="buffer"/> to begin reading.</param>
-    /// <param name="length">The number of byte to write from the <paramref name="buffer"/>.</param>
-    void WriteBuffer(byte[] buffer, int start, int length);
+    /// <param name="time">The <see cref="DateTime"/> structure to write.</param>
+    void WriteTime(DateTime time);
     
     /// <summary>
-    /// Writes an arbitrary buffer of value types to the underlying data store.
+    /// Writes the 8-byte <see cref="DateTime.UtcNow"/> value to the current stream and advanced the stream by eight
+    /// bytes.
     /// </summary>
-    /// <param name="value">A <see cref="ReadOnlySpan{T}"/> containing the data to write.</param>
-    /// <typeparam name="T">A primitive/blittable value type.</typeparam>
-    void WriteBuffer<T>(ReadOnlySpan<T> value) where T : unmanaged;
-    
-    /// <summary>
-    /// Writes an arbitrary buffer of value types to the underlying data store.
-    /// </summary>
-    /// <param name="buffer">A array containing the data to write.</param>
-    /// <param name="start">The index into the <paramref name="buffer"/> to begin reading.</param>
-    /// <param name="length">The number of items to write from the <paramref name="buffer"/>.</param>
-    /// <typeparam name="T">A primitive/blittable value type.</typeparam>
-    void WriteBuffer<T>(T[] buffer, int start, int length) where T : unmanaged;
+    void WriteTimeNow() => WriteTime(DateTime.UtcNow);
 }
