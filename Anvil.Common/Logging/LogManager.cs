@@ -6,23 +6,24 @@ public delegate void LogHandler(ILogger logger, LogLevel level, string entry, Ex
 
 public static class LogManager
 {
-    private static readonly ConcurrentDictionary<Type, ILogger> loggers;
+    private static readonly ConcurrentDictionary<string, ILogger> loggers;
     private static readonly object addLock;
 
     static LogManager()
     {
-        loggers = new ConcurrentDictionary<Type, ILogger>();
+        loggers = new ConcurrentDictionary<string, ILogger>();
         addLock = new object();
     }
 
-    public static ILogger GetLogger(Type type)
+    public static ILogger GetLogger(Type type) => GetLogger(type.FullName ?? type.Name);
+
+    public static ILogger GetLogger(string name)
     {
-        if (loggers.TryGetValue(type, out var logger))
+        if (loggers.TryGetValue(name, out var logger))
             return logger;
 
-        logger = new Logger(AddEntry); // TODO: Type
-        if (!loggers.TryAdd(type, logger))
-            Console.Error.Write($"Failed to register logger for type {type}.");
+        logger = new Logger(AddEntry);
+        loggers.TryAdd(name, logger);
 
         return logger;
     }

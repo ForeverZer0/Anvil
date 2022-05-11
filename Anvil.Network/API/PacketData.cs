@@ -1,11 +1,10 @@
-
 namespace Anvil.Network.API;
 
 /// <summary>
-/// Encapsulates a reconstructed network packet and metadata.
+/// Describes a packet with its unique identifier and a <see cref="IConnection"/> .
 /// </summary>
-/// <param name="Time">The UTC time the packet was created.</param>
-/// <param name="Id">The unique ID of the packet.</param>
-/// <param name="Packet">The deserialized packet.</param>
-/// <typeparam name="TPacket">The primitive <see cref="Enum"/> type used for the packet identifier.</typeparam>
-public sealed record PacketData<TPacket>(DateTime Time, TPacket Id, IPacket Packet) where TPacket : unmanaged, Enum;
+/// <param name="Connection">The <see cref="IConnection"/> the packet was received from or to be sent to.</param>
+/// <param name="Id">The unique identifier for the packet.</param>
+/// <param name="Packet">The <see cref="IPacket"/> instance.</param>
+/// <typeparam name="T">The 16-bit enum type used for packet identifiers.</typeparam>
+public record PacketData<T>(IConnection Connection, T Id, IPacket Packet) where T : unmanaged, Enum;

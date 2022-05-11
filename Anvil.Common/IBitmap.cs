@@ -6,7 +6,7 @@ namespace Anvil;
 /// Represents a decoded image.
 /// </summary>
 [PublicAPI]
-public interface IBitmap 
+public interface IBitmap
 {
     /// <summary>
     /// Gets the width of the image in pixel units.

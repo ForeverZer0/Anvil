@@ -1,229 +1,343 @@
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using Anvil.Logging;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Anvil.Network.API;
+using JetBrains.Annotations;
+
+[assembly: CLSCompliant(true)]
 
 namespace Anvil.Network;
 
-public class ServerConfig
-{
-    public int MaxClients { get; set; } = 20;
-
-    public IPAddress Host { get; set; } = IPAddress.Parse("127.0.0.1");
-
-    public int Port { get; set; } = 1776;
-
-    public int CompressionThreshold { get; set; } = byte.MaxValue;
-
-}
-
-internal class TcpConnection : IConnection, IEquatable<IConnection>
-{
-    /// <inheritdoc />
-    public DateTime LastSeen { get; set; }
-    
-    /// <inheritdoc />
-    public Socket Socket => Tcp.Client;
-
-    /// <inheritdoc />
-    public ClientState State { get; set; }
-
-    /// <inheritdoc />
-    public ProtocolType ProtocolType => ProtocolType.Tcp;
-
-    public IPacketReader Reader { get; }
-    
-    public TcpClient Tcp { get; }
-
-    public TcpConnection(TcpClient client, ClientState state = ClientState.Initial)
-    {
-        Tcp = client;
-        State = state;
-        LastSeen = DateTime.UtcNow;
-        Reader = new PacketReader(client.GetStream(), null, true);
-    }
-
-    /// <inheritdoc />
-    public bool Equals(IConnection? other)
-    {
-        if (ReferenceEquals(other, null))
-            return false;
-        return ReferenceEquals(this, other) || Socket.Equals(other.Socket);
-    }
-}
-
+///
 /// <summary>
-/// Abstract base class for general purpose TCP server for sending/receiving packets.
+/// Concrete implementation of a <see cref="IServer{TIncoming,TOutgoing}"/>, providing functionality for accepting
+/// client connections and asynchronously sending/emitting packets.
 /// </summary>
-/// <typeparam name="TClientBound"></typeparam>
-/// <typeparam name="TServerBound"></typeparam>
-public abstract class Server<TClientBound, TServerBound> : IServer
-    where TClientBound : unmanaged, Enum
-    where TServerBound : unmanaged, Enum
+/// <typeparam name="TIncoming">The 16-bit enum type used for incoming packet identifiers.</typeparam>
+/// <typeparam name="TOutgoing">The 16-bit enum type used for outgoing packet identifiers.</typeparam>
+[PublicAPI]
+public class Server<TIncoming, TOutgoing> : NetworkEndPoint<TIncoming, TOutgoing>, IServer<TIncoming, TOutgoing>
+    where TIncoming : unmanaged, Enum
+    where TOutgoing : unmanaged, Enum
 {
-    protected static ILogger Log = LogManager.GetLogger<Server<TClientBound, TServerBound>>();
+    /// <inheritdoc />
+    public int MaxClients => config.MaxClients;
+
+    /// <inheritdoc />
+    public bool IsRunning { get; private set; }
     
-    private readonly CancellationTokenSource cancelSource;
-    private readonly HashSet<TcpConnection> clients;
-    private readonly TcpListener listener;
-    private readonly PacketManager<TClientBound, TServerBound> pacman;
-
-    // protected IReadOnlyCollection<IConnection> Clients => clients;
-
-    /// <inheritdoc />
-    public int CompressionThreshold => pacman.CompressionThreshold;
-    
-    /// <inheritdoc />
-    public event ServerEventHandler<ConnectionEventArgs>? ClientConnected;
-
-    /// <inheritdoc />
-    public event ServerEventHandler<DisconnectEventArgs>? ClientDisconnected;
-
     /// <summary>
-    /// Occurs when a packet is received from a client.
+    /// Gets an enumerator for clients that have initiated connection with the server, but are awaiting completion
+    /// of the connection protocol and validation.
     /// </summary>
-    public event ServerEventHandler<ClientPacketEventArgs<TServerBound>>? PacketReceived; 
-
-    /// <inheritdoc />
-    public int MaxClients { get; }
-
-    /// <inheritdoc />
-    public int ConnectedClients => clients.Count;
-
-    /// <inheritdoc />
-    public async Task StartAsync()
-    {
-        listener.Start(MaxClients);
-        Log.Info($"Listening on {listener.Server.LocalEndPoint}...");
- 
-        while (!cancelSource.IsCancellationRequested)
-        {
-            if (listener.Pending())
-            {
-                await Task.Run(Listen, cancelSource.Token);
-            }
- 
-        }
-        
-
-    }
-
-    private async Task Listen()
-    {
-        try
-        {
-            var client = await listener.AcceptTcpClientAsync(cancelSource.Token);
-            Log.Info($"Connecting to {client.Client.RemoteEndPoint}...");
-            OnClientConnecting(client);
-        }
-        catch (Exception e)
-        {
-            Log.Error(e, "Failed to connect to client.");
-        }
-    }
-
-    /// <summary>
-    /// Sends a <paramref name="packet"/> to the specified client <paramref name="connection"/>.
-    /// </summary>
-    /// <param name="connection">The connection for the client to send the <paramref name="packet"/> to.</param>
-    /// <param name="packet">The <see cref="IPacket"/> to send.</param>
-    protected abstract void SendPacket(IConnection connection, IPacket packet);
-
-    /// <summary>
-    /// Deserializes a packet and processes its input.
-    /// </summary>
-    /// <param name="connection">The client connection that sent the data.</param>
-    /// <param name="id">The unique ID of the packet.</param>
-    /// <param name="reader">A <see cref="IPacketReader"/> containing the packet payload.</param>
     /// <remarks>
-    /// The packet must be completely deserialized before this method returns, as the <paramref name="reader"/> will
-    /// be invalidated when control returns to the caller.
+    /// This enumerator is thread-safe.
     /// </remarks>
-    protected abstract void ProcessPacket(IConnection connection, TServerBound id, IPacketReader reader);
-
-    /// <inheritdoc />
-    public ProtocolType ProtocolType => ProtocolType.Tcp;
-
-    /// <inheritdoc />
-    public IPAddress Host { get; }
-    
-    /// <inheritdoc />
-    public int Port { get; }
-
-    /// <inheritdoc />
-    public void Stop() => Stop(1000);
-    
-    public void Stop(int timeout)
+    protected IEnumerable<IConnection> PendingConnections
     {
-        if (cancelSource.IsCancellationRequested)
-            cancelSource.Cancel();
-        
-        var disconnectTasks = clients.Select(DisconnectAsync).ToArray();
-        Task.WaitAll(disconnectTasks, timeout);
-        clients.Clear();
-    }
-    
-    public void Disconnect(IConnection connection)
-    {
-        if (connection is not TcpConnection tcp || !clients.Remove(tcp))
-            return;
-        
-        connection.Socket.Disconnect(true);
-        ClientDisconnected?.Invoke(this, new DisconnectEventArgs(connection, DisconnectReason.ServerDisconnect));
-    }
-
-    public async Task DisconnectAsync(IConnection connection)
-    {
-        if (connection is not TcpConnection tcp || !clients.Remove(tcp))
-            return;
-        
-        await connection.Socket.DisconnectAsync(true);
-        ClientDisconnected?.Invoke(this, new DisconnectEventArgs(connection, DisconnectReason.ServerDisconnect));
-    }
-
-    public void DisconnectAll()
-    {
-        foreach (var connection in clients)
-            Disconnect(connection);
-    }
-
-    public async void DisconnectAllAsync() => await Task.WhenAll(clients.Select(DisconnectAsync));
-    
-    
-    protected Server(ServerConfig? config = null)
-    {
-        config ??= new ServerConfig();
-        cancelSource = new CancellationTokenSource();
-        
-        pacman = new PacketManager<TClientBound, TServerBound>(Log, config.CompressionThreshold);
-
-        clients = new HashSet<TcpConnection>();
-        MaxClients = config.MaxClients;
-
-        Host = config.Host;
-        Port = config.Port;
-        listener = new TcpListener(Host, Port);
-    }
-
-    protected abstract void OnClientConnecting(TcpClient client);
-
-    protected virtual void AddClient(TcpClient client)
-    {
-        var connection = new TcpConnection(client);
-        if (clients.Add(connection))
+        get
         {
-            Log.Info($"Client connected at {client.Client.RemoteEndPoint}");
-            ClientConnected?.Invoke(this, new ConnectionEventArgs(connection));
-        }
-        else
-        {
-            var endPoint = client.Client.RemoteEndPoint;
-            Log.Warn($"Client is already connected at {endPoint}");
+            lock (pendingMutex)
+            {
+                foreach (var connection in pendingConnections)
+                    yield return connection;
+            }
         }
     }
+    
+    /// <inheritdoc />
+    /// <remarks>This collection is thread-safe and read-only.</remarks>
+    public ICollection<IConnection> Clients => connectedClients.Values;
+    
+    /// <inheritdoc />
+    public int Port => config.Port;
+
+    /// <inheritdoc />
+    public IPAddress Host => config.Host;
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="Server{TIncoming,TOutgoing}"/> class with the default configuration.
+    /// </summary>
+    public Server() : this(new ServerConfiguration())
+    {
+    }
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="Server{TIncoming,TOutgoing}"/> class with the specified
+    /// <paramref name="configuration"/>.
+    /// </summary>
+    /// <param name="configuration">
+    /// A <see cref="ServerConfiguration"/> containing properties defining the desired behavior of the server.
+    /// </param>
+    public Server(ServerConfiguration configuration) : base(configuration)
+    {
+        config = configuration.Clone();
+
+        connectedClients = new ConcurrentDictionary<int, IConnection>();
+        pendingConnections = new HashSet<IConnection>();
+        Socket.Bind(new IPEndPoint(Host, Port));
+        pendingMutex = new object();
+    }
+    
+    public Task StartAsync() => StartAsync(CancelSource.Token);
+    
+    /// <inheritdoc />
+    public Task StartAsync(CancellationToken token)
+    {
+        var timeoutTask = MonitorTimeoutsAsync(token);
+        var networkTask = ProcessNetworkAsync(new IPEndPoint(IPAddress.Any, Port), token);
+        IsRunning = true;
+        return Task.WhenAll(networkTask, timeoutTask);
+    }
+
+    /// <inheritdoc />
+    protected override void ProcessPacket(EndPoint endPoint, PacketHeader header, IBinaryReader payload, int payloadSize)
+    {
+        var hash = HashCode.Combine(endPoint, header.Salt);
+        if (connectedClients.TryGetValue(hash, out var connection))
+        {
+            if (header.Flags == PacketFlags.KeepAlive)
+            {
+                connection.LastReceive = DateTime.UtcNow;
+                return;
+            }
+            if (header.Flags == PacketFlags.Disconnect)
+            {
+                ProcessDisconnect(connection, payload, payloadSize);
+                return;
+            }
+            
+            var packet = PacketManager.Factory(Direction.ServerBound, header.PacketType);
+            packet.Deserialize(payload);
+
+            var id = Unsafe.As<short, TIncoming>(ref header.PacketType);
+            var data = new PacketData<TIncoming>(connection, id, packet);
+            if (RealTimeEvents)
+                EmitPacket(data);
+            else
+                PacketQueue.Enqueue(data);
+        }
+
+        switch (header.Flags)
+        {
+            case PacketFlags.ConnectionRequest:
+                ProcessConnectionRequest(endPoint, header, payload, payloadSize);
+                break;
+            case PacketFlags.ChallengeReply:
+                ProcessChallengeResponse(endPoint, header, payload, payloadSize);
+                break;
+            
+        }
+    }
+
+
+    private void ProcessConnectionRequest(EndPoint endPoint, PacketHeader header, IBinaryReader reader, int length)
+    {
+        if (length != CONNECTION_PADDING)
+            return;
+
+        int serverSalt, clientSalt;
+        lock (pendingMutex)
+        {
+            if (pendingConnections.Any(c => c.EndPoint.Equals(endPoint)))
+                return;
+            if (header.Salt != 0 || endPoint is not IPEndPoint ip)
+                return;
+
+            var protocol = reader.ReadInt32();
+            serverSalt = Rand.Next();
+            clientSalt = reader.ReadInt32();
+            var connection = new Connection(ip, serverSalt, clientSalt);
+            
+            if (!IsProtocolSupported(protocol))
+            {
+                Disconnect(connection, DisconnectReason.UnsupportedProtocol);
+                return;
+            }
+            
+            pendingConnections.Add(connection);
+        }
+
+        SendChallengePacket(endPoint, serverSalt, clientSalt);
+    }
+
+    private void SendChallengePacket(EndPoint endPoint, int serverSalt, int clientSalt)
+    {
+        Span<byte> buffer = stackalloc byte[HEADER_SIZE + sizeof(int)];
+        var challenge = new PacketHeader(0, PacketFlags.Challenge, serverSalt);
+        MemoryMarshal.Write(buffer, ref challenge);
+        BinaryPrimitives.WriteInt32LittleEndian(buffer[HEADER_SIZE..], clientSalt);
+        Socket.SendTo(buffer, SocketFlags, endPoint);
+    }
+
+    private void ProcessChallengeResponse(EndPoint endPoint, PacketHeader header, IBinaryReader reader, int length)
+    {
+        if (length != CONNECTION_PADDING)
+            return;
+        
+        IConnection? pending;
+        lock (pendingMutex)
+        {
+            pending = pendingConnections.FirstOrDefault(c => c.EndPoint.Equals(endPoint));
+            pendingConnections.RemoveWhere(c => c.EndPoint.Equals(endPoint));
+        }
+        
+        if (pending is null)
+            return;
+
+        if (header.Salt != pending.Salt)
+        {
+            Disconnect(pending, DisconnectReason.Refused);
+            return;
+        }
+        
+        if (connectedClients.Count >= MaxClients)
+        {
+            Disconnect(pending, DisconnectReason.ServerFull);
+            return;
+        }
+
+        var hash = HashCode.Combine(endPoint, header.Salt);
+        if (!connectedClients.TryAdd(hash, pending))
+            return;
+        
+        SendConnectionConfirmation(pending);
+        OnConnected(pending);
+    }
+
+    private void SendConnectionConfirmation(IConnection connection)
+    {
+        var header = new PacketHeader(0, PacketFlags.ConnectionConfirm, connection.Salt);
+        Span<byte> buffer = stackalloc byte[HEADER_SIZE];
+        MemoryMarshal.Write(buffer, ref header);
+        Socket.SendTo(buffer, SocketFlags, connection.EndPoint);
+    }
+    
+    private void ProcessDisconnect(IConnection connection, IBinaryReader reader, int length)
+    {
+        
+        
+    }
 
 
 
+    public void Stop()
+    {
+        IsRunning = false;
+        CancelSource.Cancel();
+        // TODO
+    }
+
+    /// <summary>
+    /// Checks if the specified <paramref name="protocol"/> version is compatible with the server's protocol.
+    /// </summary>
+    /// <param name="protocol">A protocol version to query.</param>
+    /// <returns><c>true</c> if protocol is supported, otherwise <c>false</c> if client should be refused.</returns>
+    /// <remarks>
+    /// The default implementation simply checks for equality of the specified protocol and the server's value.
+    /// </remarks>
+    protected virtual bool IsProtocolSupported(int protocol) => protocol == Protocol;
+    
+    /// <summary>
+    /// Disconnects the specified <paramref name="connection"/> and sends a disconnect packet with optional message.
+    /// </summary>
+    /// <param name="connection">The connection to remove.</param>
+    /// <param name="reason">A strongly-typed constant describing the general reason for the disconnection.</param>
+    /// <param name="message">An optional text message to send with the disconnect packets.</param>
+    public new void Disconnect(IConnection connection, DisconnectReason reason, string? message = null)
+    {
+        if (connectedClients.TryRemove(connection.GetHashCode(), out var dummy))
+            base.Disconnect(connection, reason, message);
+    }
+    
+    /// <summary>
+    /// Asynchronously monitors for both active and pending connections that have not transmitted any data for the
+    /// amount of time defined by <see cref="ServerConfiguration.ClientTimeout"/>.
+    /// </summary>
+    /// <param name="token">A cancellation token that can be used to cancel the asynchronous task.</param>
+    protected virtual async Task MonitorTimeoutsAsync(CancellationToken token)
+    {
+        var duration = config.ClientTimeout;
+        if (duration <= TimeSpan.Zero)
+            return;
+        
+        await Task.Yield();
+        
+        var timeout = (int) duration.TotalMilliseconds;
+        var list = new List<IConnection>();
+        
+        while (!token.IsCancellationRequested && IsRunning)
+        {
+            await Task.Delay(timeout, token);
+            
+            var now = DateTime.UtcNow;
+            // Cannot modify while iterating, so store in temp list
+            list.AddRange(connectedClients.Values.Where(c => now - c.LastReceive > duration));
+            foreach (var client in list)
+                Disconnect(client, DisconnectReason.Timeout);
+
+            lock (pendingMutex)
+            {
+                pendingConnections.RemoveWhere(c => now - c.LastReceive > duration);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void Send(IConnection connection, TOutgoing id, IPacket packet)
+    {
+        using var buffer = SerializePacket(id, packet, PacketFlags.None, connection.Salt);
+        Socket.SendTo(buffer.AsSpan(), SocketFlags, connection.EndPoint);
+    }
+    
+    /// <summary>
+    /// Asynchronously sends a <paramref name="packet"/> to the specified <paramref name="connection"/>.
+    /// </summary>
+    /// <param name="connection">The connection used for communicating with the client.</param>
+    /// <param name="id">The outgoing ID for client-bound packet.</param>
+    /// <param name="packet">A <see cref="IPacket"/> instance containing the payload.</param>
+    /// <returns>A <see cref="Task"/> that completes when the packet completes sending.</returns>
+    public async Task SendAsync(IConnection connection, TOutgoing id, IPacket packet)
+    {
+        using var buffer = SerializePacket(id, packet, PacketFlags.None, connection.Salt);
+        await Socket.SendToAsync(buffer.AsMemory(), SocketFlags, connection.EndPoint, CancelSource.Token);
+    }
+
+    /// <inheritdoc />
+    public async Task SendAsync(IConnection connection, TOutgoing id, IPacket packet, CancellationToken token)
+    {
+        using var buffer = SerializePacket(id, packet, PacketFlags.None, connection.Salt);
+        await Socket.SendToAsync(buffer.AsMemory(), SocketFlags, connection.EndPoint, token);
+    }
+
+    /// <inheritdoc />
+    public void SendAll(TOutgoing id, IPacket packet)
+    {
+        foreach (var connection in connectedClients.Values)
+        {
+            using var buffer = SerializePacket(id, packet, PacketFlags.None, connection.Salt);
+            Socket.SendTo(buffer.AsSpan(), SocketFlags, connection.EndPoint);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task SendAllAsync(TOutgoing id, IPacket packet, CancellationToken token)
+    {
+        return Task.WhenAll(connectedClients.Values.Select(c => SendAsync(c, id, packet, token)));
+    }
+    
+    /// <summary>
+    /// Asynchronously broadcasts a <paramref name="packet"/> to all connected clients.
+    /// </summary>
+    /// <param name="id">The outgoing ID for client-bound packet.</param>
+    /// <param name="packet">A <see cref="IPacket"/> instance containing the payload.</param>
+    /// <returns>A <see cref="Task"/> that completes when the packet is sent to all clients.</returns>
+    public Task SendAllAsync(TOutgoing id, IPacket packet) => SendAllAsync(id, packet, CancelSource.Token);
+    
+    private readonly object pendingMutex;
+    private readonly HashSet<IConnection> pendingConnections;
+    private readonly ConcurrentDictionary<int, IConnection> connectedClients;
+    private readonly ServerConfiguration config;
 }
